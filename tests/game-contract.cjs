@@ -9,7 +9,7 @@ const files = Array.from({ length: 25 }, (_, i) =>
   path.join(chunksDir, String(i).padStart(3, '0') + '.txt')
 );
 const encoded = files.map(file => {
-  assert.ok(fs.existsSync(file), \`Missing game source chunk: \${path.basename(file)}\`);
+  assert.ok(fs.existsSync(file), 'Missing game source chunk: ' + path.basename(file));
   return fs.readFileSync(file, 'utf8').trim();
 }).join('');
 
@@ -26,8 +26,8 @@ const checks = [
 ];
 
 for (const [label, pattern] of checks) {
-  assert.match(html, pattern, \`Missing gameplay contract: \${label}\`);
-  console.log(\`PASS gameplay contract: \${label}\`);
+  assert.match(html, pattern, 'Missing gameplay contract: ' + label);
+  console.log('PASS gameplay contract: ' + label);
 }
 
-console.log(\`PASS packed game source decoded (\${html.length} characters)\`);
+console.log('PASS packed game source decoded (' + html.length + ' characters)');
