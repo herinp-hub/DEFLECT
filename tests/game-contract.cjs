@@ -19,6 +19,19 @@ assert.ok(loader.includes('position:core.getWorldPosition(new THREE.Vector3())')
 assert.ok(loader.includes("orb.position.distanceTo(target)<1.3"), 'Training target hit radius must account for the visible core');
 assert.ok(loader.includes('trainingMode=false;const h=document.getElementById'), 'Training miss must exit practice mode');
 assert.ok(loader.includes('eliminate(-1);'), 'Training miss must eliminate the player and return them to the lobby');
+assert.ok(loader.includes('featureCatalog'), 'Missing powers and cosmetics catalog');
+assert.ok(loader.includes('AEGIS SHIELD'), 'Missing shield power');
+assert.ok(loader.includes('TIME WARP'), 'Missing orb slow power');
+assert.ok(loader.includes('PULSE DEFLECT'), 'Missing pulse power');
+assert.ok(loader.includes('PHASE BLINK'), 'Missing blink power');
+assert.ok(loader.includes('spawnKillEffect'), 'Missing kill effect system');
+assert.ok(loader.includes('FROSTFALL ARENA'), 'Missing arena theme system');
+assert.ok(loader.includes('skin_crimson'), 'Missing unlockable player skins');
+assert.ok(loader.includes('trail_fire'), 'Missing unlockable trails');
+assert.ok(loader.includes('featureShop'), 'Missing in-game feature shop');
+assert.ok(loader.includes('powerHud'), 'Missing in-game power HUD');
+assert.ok(loader.includes('powerPulseUntil > performance.now() ? 6.2'), 'Pulse power must extend deflect range');
+
 
 const html = zlib.gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8');
 assert.ok(html.includes('<html') || html.includes('<!doctype html'), 'Packed game source did not decode to HTML');
