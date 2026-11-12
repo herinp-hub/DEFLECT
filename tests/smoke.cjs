@@ -23,7 +23,7 @@ const { chromium } = require('playwright');
       console.log('INSPECT DOM IDS ' + JSON.stringify(await page.locator('[id]').evaluateAll(nodes => nodes.map(n => ({id:n.id,tag:n.tagName,text:(n.innerText||'').slice(0,100),display:getComputedStyle(n).display})))));
       console.log('INSPECT BUTTONS ' + JSON.stringify(await page.locator('button').evaluateAll(nodes => nodes.map(n => ({id:n.id,text:n.innerText,display:getComputedStyle(n).display})))));
       console.log('INSPECT GLOBALS ' + JSON.stringify(await page.evaluate(() => Object.keys(window).filter(k => /power|ability|coin|skin|trail|map|deflect|ball|player|scene|round|kill|effect/i.test(k)).map(k => [k,typeof window[k]]))));
-console.log('INSPECT SCRIPT FUNCS ' + JSON.stringify(await page.evaluate(() => { const s=[...document.scripts].map(x=>x.textContent).join('\\n'); return [...s.matchAll(/function\\s+([A-Za-z_$][\\w$]*)\\s*\\(/g)].map(m=>m[1]); })));
+console.log('INSPECT SCRIPT FUNCS ' + JSON.stringify(await page.evaluate(() => { const s=[...document.scripts].map(x=>x.textContent).join('\\n'); return [...s.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]); })));
       console.log('INSPECT FEATURE SOURCE ' + JSON.stringify(await page.evaluate(() => { const s=[...document.scripts].map(x=>x.textContent).join('\\n'); return ['dashBtn','coinHud','shopPanel','Azure trail','trainingMode','eliminate','wins','coins'].map(k=>{const i=s.indexOf(k);return [k,i>=0?s.slice(Math.max(0,i-500),i+1800):'MISSING'];}); })));
 
       if (failures.length) throw new Error(failures.join('\n'));
