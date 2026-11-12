@@ -37,8 +37,10 @@ const { chromium } = require('playwright');
           const ids=['islandHud','shopToggle','featureVaultToggle','shopPanel','featureShop','powerHud'];
           const info={};
           for(const id of ids){const e=document.getElementById(id);if(e){const r=e.getBoundingClientRect(),s=getComputedStyle(e);info[id]={display:s.display,z:s.zIndex,pointer:s.pointerEvents,rect:{x:r.x,y:r.y,w:r.width,h:r.height}};}}
-          const b=document.getElementById('shopToggle')?.getBoundingClientRect();
+          const b=document.getElementById('featureVaultToggle')?.getBoundingClientRect();
           info.hit=b?document.elementFromPoint(b.x+b.width/2,b.y+b.height/2)?.id||'no-id':null;
+          info.panelClass=document.getElementById('shopPanel')?.className;
+          info.vaultHandler=String(document.getElementById('featureVaultToggle')?.onclick);
           return info;
         });
         throw new Error(`${viewport.name}: feature vault did not open: ${JSON.stringify(debug)}`);
