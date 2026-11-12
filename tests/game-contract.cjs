@@ -36,17 +36,4 @@ for (const [label, pattern] of checks) {
   console.log('PASS gameplay contract: ' + label);
 }
 
-// Print exact gameplay handlers, including their complete bodies, for review.
-for (const signature of ['function startTraining()', 'function stopTraining()', 'function attemptPlayerDeflect()', 'function deflect(who)', 'function eliminate(who)', 'function update(dt)']) {
-  const at = html.indexOf(signature);
-  if (at < 0) { console.log('MISSING FUNCTION: ' + signature); continue; }
-  const brace = html.indexOf('{', at);
-  let depth = 0, end = brace;
-  for (; end < html.length; end++) {
-    if (html[end] === '{') depth++;
-    else if (html[end] === '}') { depth--; if (depth === 0) break; }
-  }
-  console.log('FUNCTION ' + signature + ': ' + html.slice(at, end + 1).replace(/\\s+/g, ' '));
-}
-
 console.log('PASS packed game source decoded (' + html.length + ' characters)');
