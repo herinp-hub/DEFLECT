@@ -30,7 +30,7 @@ const { chromium } = require('playwright');
       if (!(await page.locator('#powerSelect option').count())) throw new Error(`${viewport.name}: no owned powers are selectable`);
       await page.locator('#powerBtn').click();
       await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), { timeout: 3000 });
-      await page.evaluate(() => { window.__DEFLECT_FEATURES__.openIslandHUD(); document.getElementById('islandHud').style.display='block'; document.querySelector('#islandHud #shopPanel').style.display='none'; document.getElementById('powerHud').style.display='none'; });
+      await page.evaluate(() => { window.__DEFLECT_FEATURES__.forceLobbyForTest(); document.getElementById('islandHud').style.display='block'; document.querySelector('#islandHud #shopPanel').style.display='none'; document.getElementById('powerHud').style.display='none'; });
       await page.locator('#featureVaultToggle').click();
       if (!(await page.locator('#islandHud #featureShop').isVisible())) {
         const debug = await page.evaluate(() => {
