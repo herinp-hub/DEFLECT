@@ -29,8 +29,8 @@ for (const [label, pattern] of checks) {
   console.log('PASS gameplay contract: ' + label);
 }
 
-// Print only focused source excerpts so CI logs can be used to inspect reported gameplay defects.
-for (const term of ['startTraining', 'stopTraining', 'trainingBallSpeed', 'trainingTarget', 'trainingBall', 'attemptPlayerDeflect', 'eliminat', 'respawn']) {
+// Emit complete relevant function bodies to make gameplay behavior inspectable in CI logs.
+for (const term of ['startTraining', 'stopTraining', 'attemptPlayerDeflect', 'deflect', 'eliminate', 'update']) {
   let from = 0;
   let count = 0;
   while (count < 3) {
