@@ -31,10 +31,10 @@ const { chromium } = require('playwright');
       await page.locator('#powerBtn').click();
       await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), { timeout: 3000 });
       await page.evaluate(() => { window.__DEFLECT_FEATURES__.openIslandHUD(); document.getElementById('islandHud').style.display='block'; document.getElementById('shopPanel').style.display='none'; document.getElementById('powerHud').style.display='none'; });
-      await page.locator('#shopToggle').click();
+      await page.locator('#featureVaultToggle').click();
       if (!(await page.locator('#featureShop').isVisible())) {
         const debug = await page.evaluate(() => {
-          const ids=['islandHud','shopToggle','shopPanel','featureShop','powerHud'];
+          const ids=['islandHud','shopToggle','featureVaultToggle','shopPanel','featureShop','powerHud'];
           const info={};
           for(const id of ids){const e=document.getElementById(id);if(e){const r=e.getBoundingClientRect(),s=getComputedStyle(e);info[id]={display:s.display,z:s.zIndex,pointer:s.pointerEvents,rect:{x:r.x,y:r.y,w:r.width,h:r.height}};}}
           const b=document.getElementById('shopToggle')?.getBoundingClientRect();
