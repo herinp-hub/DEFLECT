@@ -32,7 +32,17 @@ const { chromium } = require('playwright');
       await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), { timeout: 3000 });
       await page.evaluate(() => { window.__DEFLECT_FEATURES__.openIslandHUD(); document.getElementById('islandHud').style.display='block'; document.getElementById('shopPanel').style.display='none'; document.getElementById('powerHud').style.display='none'; });
       await page.locator('#shopToggle').click();
-      if (!(await page.locator('#featureShop').isVisible())) throw new Error(`${viewport.name}: feature vault did not open`);
+      if (!(await page.locator('#featureShop').isVisible())) {
+        const debug = await page.evaluate(() => {
+          const ids=['islandHud','shopToggle','shopPanel','featureShop','powerHud'];
+          const info={};
+          for(const id of ids){const e=document.getElementById(id);if(e){const r=e.getBoundingClientRect(),s=getComputedStyle(e);info[id]={display:s.display,z:s.zIndex,pointer:s.pointerEvents,rect:{x:r.x,y:r.y,w:r.width,h:r.height}};}}
+          const b=document.getElementById('shopToggle')?.getBoundingClientRect();
+          info.hit=b?document.elementFromPoint(b.x+b.width/2,b.y+b.height/2)?.id||'no-id':null;
+          return info;
+        });
+        throw new Error(`${viewport.name}: feature vault did not open: ${JSON.stringify(debug)}`);
+      }
       for (const item of ['shield','frost','blink','skin_cyan','skin_crimson','skin_void','trail_neon','trail_fire','effect_nova','effect_lightning','effect_stars','map_frost','map_ember','map_void']) {
         if (!(await page.locator('[data-feature-buy="'+item+'"]').count())) throw new Error(`${viewport.name}: missing shop item ${item}`);
       }
