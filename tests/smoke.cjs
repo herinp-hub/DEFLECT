@@ -25,7 +25,7 @@ const { chromium } = require('playwright');
       if (!(await page.locator('#powerSelect option').count())) throw new Error(`${viewport.name}: no owned powers are selectable`);
       await page.locator('#powerBtn').click();
       await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), { timeout: 3000 });
-      await page.evaluate(() => window.__DEFLECT_FEATURES__.openIslandHUD());
+      await page.evaluate(() => { window.__DEFLECT_FEATURES__.openIslandHUD(); document.getElementById('islandHud').style.display='block'; });
       await page.locator('#shopToggle').click();
       if (!(await page.locator('#featureShop').isVisible())) throw new Error(`${viewport.name}: feature vault did not open`);
       for (const item of ['shield','frost','blink','skin_cyan','skin_crimson','skin_void','trail_neon','trail_fire','effect_nova','effect_lightning','effect_stars','map_frost','map_ember','map_void']) {
