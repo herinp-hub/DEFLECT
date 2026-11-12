@@ -17,11 +17,11 @@ const html = zlib.gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8');
 assert.ok(html.includes('<html') || html.includes('<!doctype html'), 'Packed game source did not decode to HTML');
 
 const checks = [
-  ['training start handler', /function\\s+startTraining\\s*\\(/],
-  ['training stop handler', /function\\s+stopTraining\\s*\\(/],
+  ['training start handler', /function\s+startTraining\s*\\(/],
+  ['training stop handler', /function\s+stopTraining\s*\\(/],
   ['training speed progression', /trainingBallSpeed/],
-  ['world-space target position', /getWorldPosition\\s*\\(/],
-  ['training target respawn', /setTimeout\\s*\\(/],
+  ['world-space target position', /getWorldPosition\s*\\(/],
+  ['training target respawn', /setTimeout\s*\\(/],
   ['lobby training interaction', /lobbyActionPrompt/],
 ];
 
