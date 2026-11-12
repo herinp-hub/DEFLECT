@@ -20,13 +20,17 @@ const { chromium } = require('playwright');
         return menu && (getComputedStyle(menu).display === 'none' || getComputedStyle(menu).visibility === 'hidden' || Number(getComputedStyle(menu).opacity) === 0);
       }, { timeout: 10000 });
       await page.waitForTimeout(1500);
-      console.log('INSPECT DOM IDS ' + JSON.stringify(await page.locator('[id]').evaluateAll(nodes => nodes.map(n => ({id:n.id,tag:n.tagName,text:(n.innerText||'').slice(0,100),display:getComputedStyle(n).display})))));
-      console.log('INSPECT BUTTONS ' + JSON.stringify(await page.locator('button').evaluateAll(nodes => nodes.map(n => ({id:n.id,text:n.innerText,display:getComputedStyle(n).display})))));
-      console.log('INSPECT GLOBALS ' + JSON.stringify(await page.evaluate(() => Object.keys(window).filter(k => /power|ability|coin|skin|trail|map|deflect|ball|player|scene|round|kill|effect/i.test(k)).map(k => [k,typeof window[k]]))));
-console.log('INSPECT SCRIPT FUNCS ' + JSON.stringify(await page.evaluate(() => { const s=[...document.scripts].map(x=>x.textContent).join('\\n'); return [...s.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]); })));
-      console.log('INSPECT FEATURE SOURCE ' + JSON.stringify(await page.evaluate(() => { const s=[...document.scripts].map(x=>x.textContent).join('\\n'); return ['dashBtn','coinHud','shopPanel','Azure trail','trainingMode','eliminate','wins','coins'].map(k=>{const i=s.indexOf(k);return [k,i>=0?s.slice(Math.max(0,i-500),i+1800):'MISSING'];}); })));
-console.log('INSPECT HANDLERS ' + JSON.stringify(await page.evaluate(() => { const s=[...document.scripts].map(x=>x.textContent).join('\\n'); return ['islandHUD','refreshShopButtons','startTraining','stopTraining','makeFighter','update'].map(name=>{const at=s.indexOf('function '+name+'(');if(at<0)return [name,'MISSING'];const b=s.indexOf('{',at);let d=0,e=b;for(;e<s.length;e++){if(s[e]==='{')d++;else if(s[e]==='}'&&--d===0)break;}return [name,s.slice(at,e+1)];}); })));
-
+      await page.waitForSelector('#powerHud', { timeout: 10000 });
+      if (!(await page.locator('#powerHud').isVisible())) throw new Error(`${viewport.name}: power HUD is not visible in a live round`);
+      if (!(await page.locator('#powerSelect option').count())) throw new Error(`${viewport.name}: no owned powers are selectable`);
+      await page.locator('#powerBtn').click();
+      await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), { timeout: 3000 });
+      await page.evaluate(() => window.__DEFLECT_FEATURES__.openIslandHUD());
+      await page.locator('#shopToggle').click();
+      if (!(await page.locator('#featureShop').isVisible())) throw new Error(`${viewport.name}: feature vault did not open`);
+      for (const item of ['shield','frost','blink','skin_cyan','skin_crimson','skin_void','trail_neon','trail_fire','effect_nova','effect_lightning','effect_stars','map_frost','map_ember','map_void']) {
+        if (!(await page.locator('[data-feature-buy="'+item+'"]').count())) throw new Error(`${viewport.name}: missing shop item ${item}`);
+      }
       if (failures.length) throw new Error(failures.join('\n'));
       console.log(`PASS ${viewport.name}: game loads, canvas renders, arena starts, no page errors`);
       await page.close();
