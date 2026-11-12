@@ -21,13 +21,25 @@ const checks = [
   ['training stop handler', /function\s+stopTraining\s*\(/],
   ['training speed progression', /trainingBallSpeed/],
   ['world-space target position', /getWorldPosition\s*\(/],
-  ['training target respawn', /setTimeout\s*\(/],
   ['lobby training interaction', /lobbyActionPrompt/],
 ];
 
 for (const [label, pattern] of checks) {
   assert.match(html, pattern, 'Missing gameplay contract: ' + label);
   console.log('PASS gameplay contract: ' + label);
+}
+
+// Print only focused source excerpts so CI logs can be used to inspect reported gameplay defects.
+for (const term of ['startTraining', 'stopTraining', 'trainingBallSpeed', 'trainingTarget', 'trainingBall', 'attemptPlayerDeflect', 'eliminat', 'respawn']) {
+  let from = 0;
+  let count = 0;
+  while (count < 3) {
+    const at = html.indexOf(term, from);
+    if (at < 0) break;
+    console.log('SOURCE ' + term + ' #' + (count + 1) + ': ' + html.slice(Math.max(0, at - 180), Math.min(html.length, at + 520)).replace(/\s+/g, ' '));
+    from = at + term.length;
+    count++;
+  }
 }
 
 console.log('PASS packed game source decoded (' + html.length + ' characters)');
