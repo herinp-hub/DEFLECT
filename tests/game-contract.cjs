@@ -29,17 +29,17 @@ for (const [label, pattern] of checks) {
   console.log('PASS gameplay contract: ' + label);
 }
 
-// Emit complete relevant function bodies to make gameplay behavior inspectable in CI logs.
-for (const term of ['startTraining', 'stopTraining', 'attemptPlayerDeflect', 'deflect', 'eliminate', 'update']) {
-  let from = 0;
-  let count = 0;
-  while (count < 3) {
-    const at = html.indexOf(term, from);
-    if (at < 0) break;
-    console.log('SOURCE ' + term + ' #' + (count + 1) + ': ' + html.slice(Math.max(0, at - 180), Math.min(html.length, at + 520)).replace(/\s+/g, ' '));
-    from = at + term.length;
-    count++;
+// Print exact gameplay handlers, including their complete bodies, for review.
+for (const signature of ['function startTraining()', 'function stopTraining()', 'function attemptPlayerDeflect()', 'function deflect(who)', 'function eliminate(who)', 'function update(dt)']) {
+  const at = html.indexOf(signature);
+  if (at < 0) { console.log('MISSING FUNCTION: ' + signature); continue; }
+  const brace = html.indexOf('{', at);
+  let depth = 0, end = brace;
+  for (; end < html.length; end++) {
+    if (html[end] === '{') depth++;
+    else if (html[end] === '}') { depth--; if (depth === 0) break; }
   }
+  console.log('FUNCTION ' + signature + ': ' + html.slice(at, end + 1).replace(/\\s+/g, ' '));
 }
 
 console.log('PASS packed game source decoded (' + html.length + ' characters)');
