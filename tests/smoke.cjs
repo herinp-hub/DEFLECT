@@ -30,31 +30,31 @@ const { chromium } = require('playwright');
       if (!(await page.locator('#powerSelect option').count())) throw new Error(`${viewport.name}: no owned powers are selectable`);
       await page.locator('#powerBtn').click();
       await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), { timeout: 3000 });
-      await page.evaluate(() => { window.__DEFLECT_FEATURES__.forceLobbyForTest(); document.getElementById('islandHud').style.display='block'; document.querySelector('#islandHud #shopPanel').style.display='none'; document.getElementById('powerHud').style.display='none'; });
+      await page.evaluate(() => { window.__DEFLECT_FEATURES__.forceLobbyForTest(); });
       await page.locator('#featureVaultToggle').click();
-      if (!(await page.locator('#islandHud #featureShop').isVisible())) {
+      if (!(await page.locator('#featureShop').isVisible())) {
         const debug = await page.evaluate(() => {
           const ids=['islandHud','shopToggle','featureVaultToggle','powerHud'];
           const info={};
-          for(const id of ids){const e=id==='shopPanel'?document.querySelector('#islandHud #shopPanel'):id==='featureShop'?document.querySelector('#islandHud #featureShop'):document.getElementById(id);if(e){const r=e.getBoundingClientRect(),s=getComputedStyle(e);info[id]={display:s.display,z:s.zIndex,pointer:s.pointerEvents,rect:{x:r.x,y:r.y,w:r.width,h:r.height}};}}
-          const b=document.querySelector('#islandHud #featureVaultToggle')?.getBoundingClientRect();
+          for(const id of ids){const e=id==='shopPanel'?document.querySelector('#islandHud #shopPanel'):id==='featureShop'?document.querySelector('#featureShop'):document.getElementById(id);if(e){const r=e.getBoundingClientRect(),s=getComputedStyle(e);info[id]={display:s.display,z:s.zIndex,pointer:s.pointerEvents,rect:{x:r.x,y:r.y,w:r.width,h:r.height}};}}
+          const b=document.getElementById('featureVaultToggle')?.getBoundingClientRect();
           info.hit=b?document.elementFromPoint(b.x+b.width/2,b.y+b.height/2)?.id||'no-id':null;
-          info.panelClass=document.querySelector('#islandHud #shopPanel')?.className;
+          info.shopDisplay=document.getElementById('featureShop')?.style.display;
           info.vaultHandler=String(document.getElementById('featureVaultToggle')?.onclick);
           return info;
         });
         throw new Error(`${viewport.name}: feature vault did not open: ${JSON.stringify(debug)}`);
       }
       for (const item of ['shield','frost','blink','skin_cyan','skin_crimson','skin_void','trail_neon','trail_fire','effect_nova','effect_lightning','effect_stars','map_frost','map_ember','map_void']) {
-        if (!(await page.locator('#islandHud [data-feature-buy="'+item+'"]').count())) throw new Error(`${viewport.name}: missing shop item ${item}`);
+        if (!(await page.locator('#featureShop [data-feature-buy="'+item+'"]').count())) throw new Error(`${viewport.name}: missing shop item ${item}`);
       }
-      await page.locator('#islandHud [data-feature-buy="shield"]').click();
+      await page.locator('#featureShop [data-feature-buy="shield"]').click();
       await page.waitForFunction(() => localStorage.getItem('deflectOwned_shield') === '1');
       if (await page.evaluate(() => window.__DEFLECT_FEATURES__.getEquippedPower()) !== 'shield') throw new Error(`${viewport.name}: purchased shield did not equip`);
-      await page.locator('#islandHud [data-feature-buy="skin_crimson"]').click();
-      await page.locator('#islandHud [data-feature-buy="trail_fire"]').click();
-      await page.locator('#islandHud [data-feature-buy="effect_lightning"]').click();
-      await page.locator('#islandHud [data-feature-buy="map_frost"]').click();
+      await page.locator('#featureShop [data-feature-buy="skin_crimson"]').click();
+      await page.locator('#featureShop [data-feature-buy="trail_fire"]').click();
+      await page.locator('#featureShop [data-feature-buy="effect_lightning"]').click();
+      await page.locator('#featureShop [data-feature-buy="map_frost"]').click();
       const cosmetics = await page.evaluate(() => ({skin:localStorage.getItem('deflectSkin'),trail:localStorage.getItem('deflectTrail'),effect:localStorage.getItem('deflectKillEffect'),map:localStorage.getItem('deflectMap'),tag:document.getElementById('arenaThemeTag')?.textContent}));
       if (cosmetics.skin !== 'skin_crimson' || cosmetics.trail !== 'trail_fire' || cosmetics.effect !== 'effect_lightning' || cosmetics.map !== 'map_frost' || cosmetics.tag !== 'FROSTFALL ARENA') throw new Error(`${viewport.name}: cosmetic or arena unlock failed: ${JSON.stringify(cosmetics)}`);
       await page.evaluate(() => window.__DEFLECT_FEATURES__.spawnKillEffectAtPlayer());
