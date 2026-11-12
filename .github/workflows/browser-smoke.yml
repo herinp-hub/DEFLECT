@@ -20,6 +20,8 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npx playwright install --with-deps chromium
+      - name: Verify packed gameplay source
+        run: npm run test:game-contract
       - name: Start static server
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/deflect-server.log 2>&1 &
