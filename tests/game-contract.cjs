@@ -13,6 +13,13 @@ const encoded = files.map(file => {
   return fs.readFileSync(file, 'utf8').trim();
 }).join('');
 
+const loader = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+assert.ok(loader.includes('gameplayPatches'), 'Missing runtime gameplay patch layer');
+assert.ok(loader.includes('position:core.getWorldPosition(new THREE.Vector3())'), 'Training target must use the visible core world position');
+assert.ok(loader.includes("orb.position.distanceTo(target)<1.3"), 'Training target hit radius must account for the visible core');
+assert.ok(loader.includes('trainingMode=false;const h=document.getElementById'), 'Training miss must exit practice mode');
+assert.ok(loader.includes('eliminate(-1);'), 'Training miss must eliminate the player and return them to the lobby');
+
 const html = zlib.gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8');
 assert.ok(html.includes('<html') || html.includes('<!doctype html'), 'Packed game source did not decode to HTML');
 
