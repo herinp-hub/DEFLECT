@@ -20,6 +20,10 @@ const { chromium } = require('playwright');
         return menu && (getComputedStyle(menu).display === 'none' || getComputedStyle(menu).visibility === 'hidden' || Number(getComputedStyle(menu).opacity) === 0);
       }, { timeout: 10000 });
       await page.waitForTimeout(1500);
+      console.log('INSPECT DOM IDS ' + JSON.stringify(await page.locator('[id]').evaluateAll(nodes => nodes.map(n => ({id:n.id,tag:n.tagName,text:(n.innerText||'').slice(0,100),display:getComputedStyle(n).display})))));
+      console.log('INSPECT BUTTONS ' + JSON.stringify(await page.locator('button').evaluateAll(nodes => nodes.map(n => ({id:n.id,text:n.innerText,display:getComputedStyle(n).display})))));
+      console.log('INSPECT GLOBALS ' + JSON.stringify(await page.evaluate(() => Object.keys(window).filter(k => /power|ability|coin|skin|trail|map|deflect|ball|player|scene|round|kill|effect/i.test(k)).map(k => [k,typeof window[k]]))));
+
       if (failures.length) throw new Error(failures.join('\n'));
       console.log(`PASS ${viewport.name}: game loads, canvas renders, arena starts, no page errors`);
       await page.close();
