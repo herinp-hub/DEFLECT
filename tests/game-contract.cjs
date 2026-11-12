@@ -30,7 +30,7 @@ assert.ok(loader.includes('skin_crimson'), 'Missing unlockable player skins');
 assert.ok(loader.includes('trail_fire'), 'Missing unlockable trails');
 assert.ok(loader.includes('featureShop'), 'Missing in-game feature shop');
 assert.ok(loader.includes('powerHud'), 'Missing in-game power HUD');
-const featureLayerMatch = loader.match(/const featureLayer=([\\s\\S]*?);\\s*const initAt/);
+const featureLayerMatch = loader.match(/const featureLayer=([\s\\S]*?);\s*const initAt/);
 assert.ok(featureLayerMatch, 'Feature layer must be embedded as a valid JSON string');
 const featureLayerSource = JSON.parse(featureLayerMatch[1]);
 assert.ok(featureLayerSource.includes('featureVaultToggle'), 'Missing dedicated feature vault button');
