@@ -12,10 +12,10 @@ const { chromium } = require('playwright');
       page.on('pageerror', error => failures.push(`${viewport.name}: ${error.message}`));
       const response = await page.goto('http://127.0.0.1:4173/?deflectTest=1', { waitUntil: 'domcontentloaded' });
       if (!response || !response.ok()) throw new Error(`${viewport.name}: HTTP page load failed`);
-      await page.waitForFunction(() => document.title.includes('DEFLECT'), { timeout: 15000 });
+      await page.waitForFunction(() => document.title.includes('DEFLECT'), undefined, { timeout: 15000 });
       await page.waitForSelector('canvas', { timeout: 15000 });
       await page.waitForSelector('#deflectMp', { timeout: 20000 });
-      await page.waitForFunction(() => !!window.__DEFLECT_MP_BRIDGE__?.getLocalState, { timeout: 10000 });
+      await page.waitForFunction(() => !!window.__DEFLECT_MP_BRIDGE__?.getLocalState, undefined, { timeout: 10000 });
       const multiplayerProbe = await page.evaluate(() => {
         const b = window.__DEFLECT_MP_BRIDGE__;
         const state = b.getLocalState();
@@ -37,7 +37,7 @@ const { chromium } = require('playwright');
       if (savedName.stored !== 'TestPilot' || savedName.active !== 'TestPilot') throw new Error(`${viewport.name}: username did not save: ${JSON.stringify(savedName)}`);
       await page.locator('#mpCode').fill('ABC');
       await page.locator('#mpJoin').click();
-      await page.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('6-character'));
+      await page.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('6-character'), undefined, { timeout: 10000 });
       await page.locator('#deflectMp details').evaluate(el => { el.open = false; });
       if (await page.locator('#deflectMp details').evaluate(el => el.open)) throw new Error(`${viewport.name}: multiplayer panel did not close`);
 
@@ -49,7 +49,7 @@ const { chromium } = require('playwright');
       }, { timeout: 10000 });
       await page.waitForTimeout(1500);
       await page.waitForTimeout(500);
-      await page.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalNameForTest?.() === 'TestPilot', { timeout: 5000 });
+      await page.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalNameForTest?.() === 'TestPilot', undefined, { timeout: 5000 });
       const featureProbe = await page.evaluate(() => ({hud:!!document.getElementById('powerHud'), api:!!window.__DEFLECT_FEATURES__, scripts:[...document.scripts].map(s=>({type:s.type,src:s.src,len:s.textContent.length}))}));
       if (!featureProbe.hud || !featureProbe.api) throw new Error(`${viewport.name}: feature layer did not initialize; probe=${JSON.stringify(featureProbe)}; pageErrors=${failures.join(" | ")}`);
       await page.waitForSelector('#powerHud', { state: 'attached', timeout: 10000 });
@@ -58,7 +58,7 @@ const { chromium } = require('playwright');
       if (!(await page.locator('#powerSelect option').count())) throw new Error(`${viewport.name}: no owned powers are selectable`);
       await page.locator('#powerBtn').click();
       if (await page.locator('#dashBtn').isVisible()) await page.locator('#dashBtn').click();
-      await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), { timeout: 3000 });
+      await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), undefined, { timeout: 3000 });
       await page.evaluate(() => { window.__DEFLECT_FEATURES__.forceLobbyForTest(); });
       const trainingStarted = await page.evaluate(() => window.__DEFLECT_FEATURES__.startTrainingForTest());
       const trainingDuring = await page.evaluate(() => window.__DEFLECT_FEATURES__.getTrainingStateForTest());
@@ -109,21 +109,21 @@ const { chromium } = require('playwright');
       await peer.locator('#deflectMp summary').click();
       // The game creates the local fighter only after the player starts a round.
       await peer.locator('#startBtn').click();
-      await peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === true, { timeout: 10000 });
+      await peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === true, undefined, { timeout: 10000 });
     }
     await hostPage.locator('#mpName').fill('HostPilot');
     await hostPage.locator('#mpSaveName').click();
     await guestPage.locator('#mpName').fill('GuestPilot');
     await guestPage.locator('#mpSaveName').click();
     await hostPage.locator('#mpCreate').click();
-    await hostPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), { timeout: 20000 });
+    await hostPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), undefined, { timeout: 20000 });
     const roomCode = await hostPage.locator('#mpCode').inputValue();
     await guestPage.locator('#mpCode').fill(roomCode);
     await guestPage.locator('#mpJoin').click();
-    await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), { timeout: 20000 });
+    await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), undefined, { timeout: 20000 });
     console.log('TRACE multiplayer: both clients connected');
-    await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 2, { timeout: 15000 })));
-    await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getRemoteCount() > 0, { timeout: 15000 })));
+    await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 2, undefined, { timeout: 15000 })));
+    await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getRemoteCount() > 0, undefined, { timeout: 15000 })));
     const hostIdForNames = await hostPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
     const guestIdForNames = await guestPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
     await guestPage.waitForFunction(id => window.__DEFLECT_MP_BRIDGE__?.getRemoteNameForTest?.(id)==='HostPilot', hostIdForNames, { timeout: 10000 });
@@ -160,8 +160,16 @@ const { chromium } = require('playwright');
     });
     const requested = await guestPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.requestDeflectForTest());
     if (!requested) throw new Error('Multiplayer integration: guest deflect request helper was rejected');
-    await hostPage.waitForFunction(() => window.__deflectRemoteDeflectCalls > 0, { timeout: 10000 });
+    await hostPage.waitForFunction(() => window.__deflectRemoteDeflectCalls > 0, undefined, { timeout: 10000 });
     console.log('TRACE multiplayer: guest deflect reached host');
+
+    // Move the real guest away so the live host loop cannot eliminate it during synthetic hit probes.
+    const guestIdForHit = await guestPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
+    await guestPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest([50, 0, 50], 0));
+    await hostPage.waitForFunction(id => {
+      const p = window.__DEFLECT_MP_BRIDGE__?.getRemotePlayerPositionForTest(id);
+      return Array.isArray(p) && p[0] > 49 && p[2] > 49;
+    }, guestIdForHit, { timeout: 10000 });
 
     // Exercise host-side directional/range hit validation without relying on frame timing.
     const hitProbe = await hostPage.evaluate(() => {
@@ -170,6 +178,7 @@ const { chromium } = require('playwright');
       const valid = b.checkRemoteHits([{ id: 'contract-hit', state: { position: [1.5, 0, 0], alive: true } }]);
       const wrongDirection = b.checkRemoteHits([{ id: 'contract-wrong-way', state: { position: [-1.5, 0, 0], alive: true } }]);
       const outOfRange = b.checkRemoteHits([{ id: 'contract-far', state: { position: [8, 0, 0], alive: true } }]);
+      b.setOrbStateForTest([10, 0, 10], [0, 0, 0]);
       return { valid, wrongDirection, outOfRange };
     });
     console.log('TRACE multiplayer: hit validation', JSON.stringify(hitProbe));
@@ -177,17 +186,20 @@ const { chromium } = require('playwright');
       throw new Error('Multiplayer integration: remote hit validation failed: ' + JSON.stringify(hitProbe));
     }
 
-    // Verify a host elimination is broadcast and applied by the guest.
+    // Verify a host elimination is broadcast and applied by the guest, independently of hit detection.
+    if (!(await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.isNetworkHost()))) throw new Error('Multiplayer integration: expected the room creator to be host');
+    const guestStillAlive = await guestPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLocalState().alive);
+    if (!guestStillAlive) throw new Error('Multiplayer integration: guest was eliminated during the isolated hit test');
     const hostEliminated = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.triggerHostEliminationForTest());
     if (!hostEliminated) throw new Error('Multiplayer integration: host elimination helper was rejected');
-    await guestPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === false, { timeout: 10000 });
-    await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('HOST ELIMINATED'), { timeout: 10000 });
+    await guestPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === false, undefined, { timeout: 10000 });
+    await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('HOST ELIMINATED'), undefined, { timeout: 10000 });
     console.log('TRACE multiplayer: host elimination broadcast received');
 
     // When the host leaves, the remaining peer must be elected host.
     await hostPage.locator('#mpLeave').click();
-    await guestPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.isNetworkHost?.() === true, { timeout: 15000 });
-    await guestPage.waitForFunction(() => document.querySelector('#mpHost')?.textContent.includes('HOST'), { timeout: 10000 });
+    await guestPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.isNetworkHost?.() === true, undefined, { timeout: 15000 });
+    await guestPage.waitForFunction(() => document.querySelector('#mpHost')?.textContent.includes('HOST'), undefined, { timeout: 10000 });
     console.log('TRACE multiplayer: host failover complete');
     console.log('PASS multiplayer integration: join/sync, deflect request, hit validation, host elimination and host failover');
     await hostPage.close();
