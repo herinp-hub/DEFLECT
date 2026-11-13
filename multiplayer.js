@@ -37,7 +37,10 @@ if(!cfg?.url||!cfg?.publishableKey){$("mpStatus").textContent="Supabase setup is
 const supabase=createClient(cfg.url,cfg.publishableKey,{realtime:{params:{eventsPerSecond:20}}});
 const selfId=crypto.randomUUID();
 window.__DEFLECT_MP_SELF_ID__=selfId;
-let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="Pilot-"+Math.floor(1000+Math.random()*9000);localStorage.setItem("deflectPlayerName",n)}return n})();\nwindow.__DEFLECT_MP_NAME__=playerName;\nlet joinedAt=Date.now();\n$("mpName").value=playerName;
+let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="Pilot-"+Math.floor(1000+Math.random()*9000);localStorage.setItem("deflectPlayerName",n)}return n})();
+window.__DEFLECT_MP_NAME__=playerName;
+let joinedAt=Date.now();
+$("mpName").value=playerName;
 let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,lastStateSent=0,lastOrbSent=0,loops=null;
 const status=s=>$("mpStatus").textContent=s;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
@@ -131,7 +134,8 @@ async function join(raw){
   next.subscribe(async s=>{
     if(s==="SUBSCRIBED"){
       channel=next;
-      joinedAt=Date.now();\n      await next.track({player:{id:selfId,name:playerName,joinedAt}});
+      joinedAt=Date.now();
+      await next.track({player:{id:selfId,name:playerName,joinedAt}});
       $("mpRoom").textContent="ROOM CODE: "+room+" · share with friends";
       $("mpCode").value=room;$("mpLeave").disabled=false;
       status("Connected as "+playerName);render();startLoops();
@@ -146,7 +150,9 @@ window.addEventListener("deflect:request",event=>{
   const p=event.detail?.position;
   if(channel&&Array.isArray(p))send("deflect-request",{id:selfId,position:p});
 });
-$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(!clean){status("Enter a username first.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;localStorage.setItem("deflectPlayerName",clean);if(channel)await channel.track({player:{id:selfId,name:playerName,joinedAt}});status("Username saved: "+clean);};\n$("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};\n$("mpCreate").onclick=()=>join(makeCode());
+$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(!clean){status("Enter a username first.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;localStorage.setItem("deflectPlayerName",clean);if(channel)await channel.track({player:{id:selfId,name:playerName,joinedAt}});status("Username saved: "+clean);};
+$("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};
+$("mpCreate").onclick=()=>join(makeCode());
 $("mpJoin").onclick=()=>join($("mpCode").value);
 $("mpLeave").onclick=()=>{leave();status("You left the room.")};
 $("mpCode").onkeydown=e=>{if(e.key==="Enter")join($("mpCode").value)};
