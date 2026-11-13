@@ -11,5 +11,5 @@ const featureLayer="\n/* DEFLECT feature expansion: powers, cosmetics, rewards a
 const initAt=html.lastIndexOf("buildLevels();");
 if(initAt<0)throw new Error("Game initialization hook missing");
 html=html.slice(0,initAt)+featureLayer+"\n"+html.slice(initAt);
-document.open();document.write(html);document.close()}catch(e){document.getElementById('loading').textContent='DEFLECT could not load. Please refresh.';console.error(e)}})();
+html=html.replace("</body>",'<script src="/supabase-config.js"><\/script><script type="module" src="/multiplayer.js"><\/script></body>');document.open();document.write(html);document.close()}catch(e){document.getElementById('loading').textContent='DEFLECT could not load. Please refresh.';console.error(e)}})();
 </script></body></html>
