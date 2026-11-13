@@ -60,6 +60,7 @@ assert.ok(loader.includes('/multiplayer.js'), 'Multiplayer client must be loaded
 assert.ok(loader.includes('/supabase-config.js'), 'Public Supabase config must be loaded by the game shell');
 assert.ok(loader.includes('window.__DEFLECT_MP_BRIDGE__'), 'Game must expose its multiplayer bridge');
 assert.ok(loader.includes('mpApplySnapshot'), 'Multiplayer bridge must apply host orb snapshots');
+assert.ok(loader.includes('const networkGuest=mpOnline&&!mpHost'), 'Non-host clients must not simulate authoritative orb and bot state locally');
 assert.ok(loader.includes('mpSetRemotePlayers'), 'Multiplayer bridge must render remote players');
 assert.ok(loader.includes('setOrbStateForTest'), 'Multiplayer bridge must expose deterministic orb sync test support');
 assert.ok(loader.includes('setPlayerStateForTest'), 'Multiplayer bridge must expose deterministic player movement test support');
