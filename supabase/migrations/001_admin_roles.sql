@@ -42,6 +42,14 @@ create policy "users can read actions addressed to them and public notices"
   on public.deflect_admin_actions for select to authenticated
   using (target_user = auth.uid() or action in ('announce','event'));
 
+create policy "staff can read moderation audit log"
+  on public.deflect_admin_actions for select to authenticated
+  using (exists (
+    select 1 from public.deflect_roles r
+    where r.user_id = auth.uid()
+      and r.role in ('owner','head_admin','admin','moderator')
+  ));
+
 create or replace function public.deflect_my_role()
 returns text
 language sql
@@ -97,6 +105,9 @@ begin
   if action_name = 'kick' and caller_role not in ('owner','head_admin','admin','moderator') then raise exception 'Insufficient permission'; end if;
   select role into target_role from public.deflect_roles where user_id = target_user;
   if target_role = 'owner' then raise exception 'The owner cannot be moderated'; end if;
+  if caller_role = 'moderator' and coalesce(target_role,'player') <> 'player' then raise exception 'Moderators can only moderate players'; end if;
+  if caller_role = 'admin' and target_role in ('owner','head_admin','admin') then raise exception 'Insufficient role hierarchy'; end if;
+  if caller_role = 'head_admin' and target_role in ('owner','head_admin') then raise exception 'Insufficient role hierarchy'; end if;
   if action_name = 'ban' then
     insert into public.deflect_bans(user_id, reason, created_by)
     values(target_user, coalesce(action_payload->>'reason',''), auth.uid())
