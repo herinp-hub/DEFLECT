@@ -104,6 +104,18 @@ const { chromium } = require('playwright');
     await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), { timeout: 20000 });
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 2, { timeout: 15000 })));
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getRemoteCount() > 0, { timeout: 15000 })));
+    const movementProbe = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest([1.25, 0, 4.5], 0.75));
+    if (!movementProbe) throw new Error('Multiplayer integration: could not set deterministic host player position');
+    await guestPage.waitForFunction(() => {
+      const p = window.__DEFLECT_MP_BRIDGE__?.getRemotePlayerPositionForTest('__HOST_ID__');
+      return Array.isArray(p) && Math.abs(p[0] - 1.25) < 0.01 && Math.abs(p[2] - 4.5) < 0.01;
+    }, { timeout: 10000 }).catch(async () => {
+      const hostId = await hostPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
+      await guestPage.waitForFunction(id => {
+        const p = window.__DEFLECT_MP_BRIDGE__?.getRemotePlayerPositionForTest(id);
+        return Array.isArray(p) && Math.abs(p[0] - 1.25) < 0.01 && Math.abs(p[2] - 4.5) < 0.01;
+      }, hostId, { timeout: 10000 });
+    });
     const orbProbe = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.setOrbStateForTest([3, 2, 5], null));
     if (!orbProbe) throw new Error('Multiplayer integration: could not set deterministic host orb state');
     await guestPage.waitForFunction(() => {
