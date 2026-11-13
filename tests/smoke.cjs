@@ -114,12 +114,17 @@ const { chromium } = require('playwright');
       const p = window.__DEFLECT_MP_BRIDGE__?.getRemotePlayerPositionForTest(id);
       return Array.isArray(p) && Math.abs(p[0] - 1.25) < 0.01 && Math.abs(p[2] - 4.5) < 0.01;
     }, hostId, { timeout: 10000 });
-    const orbProbe = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.setOrbStateForTest([3, 2, 5], null));
+    const orbProbe = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.setOrbStateForTest([3, 2, 5], [0, 0, 0]));
     if (!orbProbe) throw new Error('Multiplayer integration: could not set deterministic host orb state');
     await guestPage.waitForFunction(() => {
       const p = window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().orbPosition;
       return Array.isArray(p) && p[0] === 3 && p[1] === 2 && p[2] === 5;
     }, { timeout: 10000 });
+    await guestPage.waitForTimeout(650);
+    const stableGuestOrb = await guestPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLocalState().orbPosition);
+    if (Math.abs(stableGuestOrb[0] - 3) > 0.01 || Math.abs(stableGuestOrb[1] - 2) > 0.01 || Math.abs(stableGuestOrb[2] - 5) > 0.01) {
+      throw new Error('Multiplayer integration: guest client overrode the host-authoritative orb snapshot: ' + JSON.stringify(stableGuestOrb));
+    }
 
     await guestPage.locator('#mpLeave').click();
     await hostPage.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 1, { timeout: 15000 });
