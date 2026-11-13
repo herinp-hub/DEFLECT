@@ -60,6 +60,7 @@ async function refreshAuth(session){
   }else{
     $("mpAuthStatus").textContent="Not signed in · players can join as guests";
     $("mpLogin").style.display="block";$("mpEmail").style.display="block";$("mpLogout").style.display="none";
+    if(channel)await channel.track({player:{id:selfId,name:playerName,role:"player",userId:null,joinedAt}});
     if(adminPoll)clearInterval(adminPoll);adminPoll=setInterval(pollAdminActions,3500);
   }
   window.__DEFLECT_MP_ROLE__=currentRole;if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});renderAdminConsole();
@@ -111,6 +112,7 @@ async function refreshAdminBans(){
 async function issueAdminAction(targetUser,action,payload){
   const result=await supabase.rpc("deflect_admin_action",{target_user:targetUser,action_name:action,action_payload:payload});
   status(result.error?"Action failed: "+result.error.message:action.toUpperCase()+" sent.");
+  if(!result.error&&action==="unban")refreshAdminBans();
 }
 async function pollAdminActions(){
   if(!authSession&&!channel)return;
