@@ -55,3 +55,7 @@ for (const [label, pattern] of checks) {
 }
 
 console.log('PASS packed game source decoded (' + html.length + ' characters)');
+
+assert.ok(loader.includes('/multiplayer.js'), 'Multiplayer client must be loaded by the game shell');
+assert.ok(loader.includes('/supabase-config.js'), 'Public Supabase config must be loaded by the game shell');
+console.log('PASS multiplayer client/config are wired into the game shell');
