@@ -95,6 +95,9 @@ const { chromium } = require('playwright');
       await peer.goto('http://127.0.0.1:4173/?deflectTest=1', { waitUntil: 'domcontentloaded' });
       await peer.waitForSelector('#deflectMp', { timeout: 20000 });
       await peer.locator('#deflectMp summary').click();
+      // The game creates the local fighter only after the player starts a round.
+      await peer.locator('#startBtn').click();
+      await peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === true, { timeout: 10000 });
     }
     await hostPage.locator('#mpCreate').click();
     await hostPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), { timeout: 20000 });
