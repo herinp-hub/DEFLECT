@@ -10,7 +10,7 @@ Serve this repository with any static HTTP server (for example, `python3 -m http
 - The build was previously exercised with mobile/desktop smoke checks and repeated training-target/deflect cycles. The GitHub Pages/Vercel hosting setup still needs to be configured separately.
 
 ## Online multiplayer preview
-The multiplayer panel currently provides ephemeral room creation/joining with Supabase Realtime Presence. Players in the same room see the live room roster; room codes are shareable. This is the lobby/presence foundation only: synchronized in-match movement, authoritative hit validation, matchmaking, and persistent accounts are not implemented yet. Client-broadcast gameplay is not cheat-resistant.
+The multiplayer panel supports room creation/joining with Supabase Realtime Presence, shared room codes, remote player avatars, periodic player-position updates, and host-broadcast orb/bot snapshots. The room host validates remote deflect requests and checks nearby remote players for hits. This is an early peer-hosted multiplayer prototype, not a production authoritative server: clients can still tamper with broadcasts, match state can diverge on host disconnect, matchmaking and persistent accounts are not implemented, and the host's own elimination currently ends its local simulation.
 
 ### Supabase setup
 The browser uses only the project's publishable key in `supabase-config.js`. This key is public by design; never add a secret/service_role key to this repository. Realtime room presence uses channels and does not require database tables or disabling RLS.
