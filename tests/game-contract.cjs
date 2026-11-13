@@ -58,4 +58,8 @@ console.log('PASS packed game source decoded (' + html.length + ' characters)');
 
 assert.ok(loader.includes('/multiplayer.js'), 'Multiplayer client must be loaded by the game shell');
 assert.ok(loader.includes('/supabase-config.js'), 'Public Supabase config must be loaded by the game shell');
+assert.ok(loader.includes('window.__DEFLECT_MP_BRIDGE__'), 'Game must expose its multiplayer bridge');
+assert.ok(loader.includes('mpApplySnapshot'), 'Multiplayer bridge must apply host orb snapshots');
+assert.ok(loader.includes('mpSetRemotePlayers'), 'Multiplayer bridge must render remote players');
+
 console.log('PASS multiplayer client/config are wired into the game shell');
