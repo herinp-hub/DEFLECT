@@ -62,6 +62,8 @@ assert.ok(loader.includes('window.__DEFLECT_MP_BRIDGE__'), 'Game must expose its
 assert.ok(loader.includes('mpApplySnapshot'), 'Multiplayer bridge must apply host orb snapshots');
 assert.ok(loader.includes('mpSetRemotePlayers'), 'Multiplayer bridge must render remote players');
 assert.ok(loader.includes('setOrbStateForTest'), 'Multiplayer bridge must expose deterministic orb sync test support');
+assert.ok(loader.includes('setPlayerStateForTest'), 'Multiplayer bridge must expose deterministic player movement test support');
+assert.ok(loader.includes('getRemotePlayerPositionForTest'), 'Multiplayer bridge must expose remote avatar position to integration tests');
 assert.ok(loader.includes('deflect:host-eliminated'), 'Host elimination must notify the multiplayer client');
 const multiplayerClient = fs.readFileSync(path.join(root, 'multiplayer.js'), 'utf8');
 assert.ok(multiplayerClient.includes('send("host-eliminated"'), 'Host elimination must be broadcast to the room');
