@@ -92,7 +92,7 @@ const { chromium } = require('playwright');
     const hostPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const guestPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
     for (const peer of [hostPage, guestPage]) {
-      await peer.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+      await peer.goto('http://127.0.0.1:4173/?deflectTest=1', { waitUntil: 'domcontentloaded' });
       await peer.waitForSelector('#deflectMp', { timeout: 20000 });
       await peer.locator('#deflectMp summary').click();
     }
@@ -104,6 +104,13 @@ const { chromium } = require('playwright');
     await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), { timeout: 20000 });
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 2, { timeout: 15000 })));
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getRemoteCount() > 0, { timeout: 15000 })));
+    const orbProbe = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.setOrbStateForTest([3, 2, 5], null));
+    if (!orbProbe) throw new Error('Multiplayer integration: could not set deterministic host orb state');
+    await guestPage.waitForFunction(() => {
+      const p = window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().orbPosition;
+      return Array.isArray(p) && p[0] === 3 && p[1] === 2 && p[2] === 5;
+    }, { timeout: 10000 });
+
     await guestPage.locator('#mpLeave').click();
     await hostPage.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 1, { timeout: 15000 });
     console.log('PASS multiplayer integration: two clients join, see each other, and leave cleanly');
