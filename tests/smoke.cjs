@@ -25,9 +25,9 @@ const { chromium } = require('playwright');
         const remoteName = b.getRemoteNameForTest('test-remote');
         b.setRemotePlayers([]);
         b.setNetworkState(false, false, null);
-        return { bridge: !!b, hasPosition: Array.isArray(state.position), hasOrb: Array.isArray(state.orbPosition), remoteCount, remoteName, panel: !!document.querySelector('#mpCreate') };
+        return { bridge: !!b, hasPosition: Array.isArray(state.position), hasOrb: Array.isArray(state.orbPosition), remoteCount, remoteName, panel: !!document.querySelector('#mpCreate'), adminLogin:!!document.querySelector('#mpLogin'), adminPanel:!!document.querySelector('#mpAdmin'), audit:!!document.querySelector('#mpAuditRefresh'), bans:!!document.querySelector('#mpBansRefresh') };
       });
-      if (!multiplayerProbe.bridge || !multiplayerProbe.hasPosition || !multiplayerProbe.hasOrb || multiplayerProbe.remoteCount !== 1 || multiplayerProbe.remoteName !== 'RemotePilot' || !multiplayerProbe.panel) {
+      if (!multiplayerProbe.bridge || !multiplayerProbe.hasPosition || !multiplayerProbe.hasOrb || multiplayerProbe.remoteCount !== 1 || multiplayerProbe.remoteName !== 'RemotePilot' || !multiplayerProbe.panel || !multiplayerProbe.adminLogin || !multiplayerProbe.adminPanel || !multiplayerProbe.audit || !multiplayerProbe.bans) {
         throw new Error(`${viewport.name}: multiplayer bridge smoke test failed: ${JSON.stringify(multiplayerProbe)}`);
       }
       await page.locator('#deflectMp summary').click();
@@ -50,6 +50,8 @@ const { chromium } = require('playwright');
       await page.waitForTimeout(1500);
       await page.waitForTimeout(500);
       await page.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalNameForTest?.() === 'TestPilot', undefined, { timeout: 5000 });
+      const eventProbe = await page.evaluate(() => {const b=window.__DEFLECT_MP_BRIDGE__;return {giant:b.applyAdminEvent('giant_orb'),double:b.applyAdminEvent('double_rewards'),invalid:b.applyAdminEvent('not_a_real_event')};});
+      if (!eventProbe.giant || !eventProbe.double || eventProbe.invalid) throw new Error(`${viewport.name}: admin event validation failed: ${JSON.stringify(eventProbe)}`);
       const featureProbe = await page.evaluate(() => ({hud:!!document.getElementById('powerHud'), api:!!window.__DEFLECT_FEATURES__, scripts:[...document.scripts].map(s=>({type:s.type,src:s.src,len:s.textContent.length}))}));
       if (!featureProbe.hud || !featureProbe.api) throw new Error(`${viewport.name}: feature layer did not initialize; probe=${JSON.stringify(featureProbe)}; pageErrors=${failures.join(" | ")}`);
       await page.waitForSelector('#powerHud', { state: 'attached', timeout: 10000 });
