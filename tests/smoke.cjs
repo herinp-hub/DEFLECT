@@ -14,6 +14,25 @@ const { chromium } = require('playwright');
       if (!response || !response.ok()) throw new Error(`${viewport.name}: HTTP page load failed`);
       await page.waitForFunction(() => document.title.includes('DEFLECT'), { timeout: 15000 });
       await page.waitForSelector('canvas', { timeout: 15000 });
+      await page.waitForSelector('#deflectMp', { timeout: 20000 });
+      await page.waitForFunction(() => !!window.__DEFLECT_MP_BRIDGE__?.getLocalState, { timeout: 10000 });
+      const multiplayerProbe = await page.evaluate(() => {
+        const b = window.__DEFLECT_MP_BRIDGE__;
+        const state = b.getLocalState();
+        b.setNetworkState(true, true, 'test-self');
+        b.setRemotePlayers([{ id: 'test-remote', state: { position: [2, 0, 3], rotation: 0.5, alive: true } }]);
+        const remoteCount = b.getRemoteCount();
+        b.setRemotePlayers([]);
+        b.setNetworkState(false, false, null);
+        return { bridge: !!b, hasPosition: Array.isArray(state.position), hasOrb: Array.isArray(state.orbPosition), remoteCount, panel: !!document.querySelector('#mpCreate') };
+      });
+      if (!multiplayerProbe.bridge || !multiplayerProbe.hasPosition || !multiplayerProbe.hasOrb || multiplayerProbe.remoteCount !== 1 || !multiplayerProbe.panel) {
+        throw new Error(`${viewport.name}: multiplayer bridge smoke test failed: ${JSON.stringify(multiplayerProbe)}`);
+      }
+      await page.locator('#mpCode').fill('ABC');
+      await page.locator('#mpJoin').click();
+      await page.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('6-character'));
+
       if (!(await page.locator('#menu').isVisible())) throw new Error(`${viewport.name}: start menu is not visible`);
       await page.locator('#startBtn').click();
       await page.waitForFunction(() => {
