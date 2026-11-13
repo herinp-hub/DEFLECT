@@ -100,7 +100,7 @@ begin
   insert into public.deflect_admin_actions(target_user, action, payload, created_by)
   values(target_user, 'role_change', jsonb_build_object('role', new_role), auth.uid());
 end;
-$;
+$$;
 
 create or replace function public.deflect_admin_action(target_user uuid, action_name text, action_payload jsonb default '{}'::jsonb)
 returns bigint
