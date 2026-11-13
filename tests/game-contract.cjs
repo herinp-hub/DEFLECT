@@ -76,6 +76,8 @@ assert.ok(adminSql.includes('staff can read moderation audit log'), 'Staff audit
 assert.ok(adminSql.includes("role_change"), 'Role changes must be included in the audit trail');
 assert.ok(adminSql.includes('guests can read public admin notices'), 'Guests must receive authorized public admin events');
 assert.ok(adminSql.includes('staff can read ban records'), 'Ban records must be staff-protected');
+assert.ok(!adminSql.includes('\\n$;'), 'Admin SQL functions must use valid dollar-quote terminators');
+assert.ok((adminSql.match(/\\$\\$;/g)||[]).length >= 4, 'Admin SQL functions must have matching dollar-quote terminators');
 assert.ok(loader.includes('deflect:host-eliminated'), 'Host elimination must notify the multiplayer client');
 const multiplayerClient = fs.readFileSync(path.join(root, 'multiplayer.js'), 'utf8');
 assert.ok(multiplayerClient.includes('send("host-eliminated"'), 'Host elimination must be broadcast to the room');
