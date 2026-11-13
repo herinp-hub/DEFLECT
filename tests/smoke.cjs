@@ -33,7 +33,8 @@ const { chromium } = require('playwright');
       await page.locator('#mpCode').fill('ABC');
       await page.locator('#mpJoin').click();
       await page.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('6-character'));
-      await page.locator('#deflectMp summary').click();
+      await page.locator('#deflectMp details').evaluate(el => { el.open = false; });
+      if (await page.locator('#deflectMp details').evaluate(el => el.open)) throw new Error(`${viewport.name}: multiplayer panel did not close`);
 
       if (!(await page.locator('#menu').isVisible())) throw new Error(`${viewport.name}: start menu is not visible`);
       await page.locator('#startBtn').click();
