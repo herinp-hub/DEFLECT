@@ -27,7 +27,7 @@ The admin console uses Supabase Auth and database-enforced permissions. It suppo
 - Roles: Owner, Head Admin, Admin, Moderator, and Player.
 - Owner-only role assignment and revocation.
 - Scoped kick/ban permissions and an unban list.
-- Owner/Head Admin announcements and timed arena events (Giant Orb, Double Coins, Orb Rush, Low Gravity, and Rainbow Arena).
+- Owner/Head Admin announcements and timed arena events (Giant Orb, Double Coins, Orb Rush, Low Gravity, Rainbow Arena, and Meteor Shower).
 - A protected moderation audit log.
 
 ### One-time Supabase setup
