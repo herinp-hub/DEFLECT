@@ -126,7 +126,8 @@ async function join(raw){
       applyRemotePlayers();
       if(payload.id===selfId){bridge()?.applyNetworkElimination();status("ELIMINATED · room host confirmed the hit");}
     })
-    .on("broadcast",{event:"match-start"},({payload})=>{if(payload?.by!==selfId)startMatch()});
+    .on("broadcast",{event:"match-start"},({payload})=>{if(payload?.by!==selfId)startMatch()})
+    .on("broadcast",{event:"host-eliminated"},({payload})=>{if(payload?.id&&payload.id!==selfId){bridge()?.applyNetworkElimination();status("HOST ELIMINATED · round ended");}});
   next.subscribe(async s=>{
     if(s==="SUBSCRIBED"){
       channel=next;
@@ -140,6 +141,7 @@ async function join(raw){
     }
   });
 }
+window.addEventListener("deflect:host-eliminated",()=>{if(channel&&isHost)send("host-eliminated",{id:selfId});});
 window.addEventListener("deflect:request",event=>{
   const p=event.detail?.position;
   if(channel&&Array.isArray(p))send("deflect-request",{id:selfId,position:p});
