@@ -33,6 +33,7 @@ const { chromium } = require('playwright');
       await page.locator('#mpCode').fill('ABC');
       await page.locator('#mpJoin').click();
       await page.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('6-character'));
+      await page.locator('#deflectMp summary').click();
 
       if (!(await page.locator('#menu').isVisible())) throw new Error(`${viewport.name}: start menu is not visible`);
       await page.locator('#startBtn').click();
