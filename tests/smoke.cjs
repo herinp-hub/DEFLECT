@@ -20,16 +20,21 @@ const { chromium } = require('playwright');
         const b = window.__DEFLECT_MP_BRIDGE__;
         const state = b.getLocalState();
         b.setNetworkState(true, true, 'test-self');
-        b.setRemotePlayers([{ id: 'test-remote', state: { position: [2, 0, 3], rotation: 0.5, alive: true } }]);
+        b.setRemotePlayers([{ id: 'test-remote', state: { position: [2, 0, 3], rotation: 0.5, alive: true, name:'RemotePilot' } }]);
         const remoteCount = b.getRemoteCount();
+        const remoteName = b.getRemoteNameForTest('test-remote');
         b.setRemotePlayers([]);
         b.setNetworkState(false, false, null);
-        return { bridge: !!b, hasPosition: Array.isArray(state.position), hasOrb: Array.isArray(state.orbPosition), remoteCount, panel: !!document.querySelector('#mpCreate') };
+        return { bridge: !!b, hasPosition: Array.isArray(state.position), hasOrb: Array.isArray(state.orbPosition), remoteCount, remoteName, panel: !!document.querySelector('#mpCreate') };
       });
-      if (!multiplayerProbe.bridge || !multiplayerProbe.hasPosition || !multiplayerProbe.hasOrb || multiplayerProbe.remoteCount !== 1 || !multiplayerProbe.panel) {
+      if (!multiplayerProbe.bridge || !multiplayerProbe.hasPosition || !multiplayerProbe.hasOrb || multiplayerProbe.remoteCount !== 1 || multiplayerProbe.remoteName !== 'RemotePilot' || !multiplayerProbe.panel) {
         throw new Error(`${viewport.name}: multiplayer bridge smoke test failed: ${JSON.stringify(multiplayerProbe)}`);
       }
       await page.locator('#deflectMp summary').click();
+      await page.locator('#mpName').fill('TestPilot');
+      await page.locator('#mpSaveName').click();
+      const savedName = await page.evaluate(() => ({stored:localStorage.getItem('deflectPlayerName'),active:window.__DEFLECT_MP_NAME__}));
+      if (savedName.stored !== 'TestPilot' || savedName.active !== 'TestPilot') throw new Error(`${viewport.name}: username did not save: ${JSON.stringify(savedName)}`);
       await page.locator('#mpCode').fill('ABC');
       await page.locator('#mpJoin').click();
       await page.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('6-character'));
@@ -44,6 +49,7 @@ const { chromium } = require('playwright');
       }, { timeout: 10000 });
       await page.waitForTimeout(1500);
       await page.waitForTimeout(500);
+      await page.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalNameForTest?.() === 'TestPilot', { timeout: 5000 });
       const featureProbe = await page.evaluate(() => ({hud:!!document.getElementById('powerHud'), api:!!window.__DEFLECT_FEATURES__, scripts:[...document.scripts].map(s=>({type:s.type,src:s.src,len:s.textContent.length}))}));
       if (!featureProbe.hud || !featureProbe.api) throw new Error(`${viewport.name}: feature layer did not initialize; probe=${JSON.stringify(featureProbe)}; pageErrors=${failures.join(" | ")}`);
       await page.waitForSelector('#powerHud', { state: 'attached', timeout: 10000 });
@@ -54,6 +60,12 @@ const { chromium } = require('playwright');
       if (await page.locator('#dashBtn').isVisible()) await page.locator('#dashBtn').click();
       await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), { timeout: 3000 });
       await page.evaluate(() => { window.__DEFLECT_FEATURES__.forceLobbyForTest(); });
+      const trainingStarted = await page.evaluate(() => window.__DEFLECT_FEATURES__.startTrainingForTest());
+      const trainingDuring = await page.evaluate(() => window.__DEFLECT_FEATURES__.getTrainingStateForTest());
+      if (!trainingStarted || !trainingDuring.trainingMode) throw new Error(`${viewport.name}: training area did not start: ${JSON.stringify(trainingDuring)}`);
+      const trainingStopped = await page.evaluate(() => window.__DEFLECT_FEATURES__.stopTrainingForTest());
+      if (!trainingStopped) throw new Error(`${viewport.name}: training area did not stop cleanly`);
+      await page.evaluate(() => window.__DEFLECT_FEATURES__.forceLobbyForTest());
       await page.locator('#featureVaultToggle').click();
       if (!(await page.locator('#featureShop').isVisible())) {
         const debug = await page.evaluate(() => {
@@ -99,6 +111,10 @@ const { chromium } = require('playwright');
       await peer.locator('#startBtn').click();
       await peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === true, { timeout: 10000 });
     }
+    await hostPage.locator('#mpName').fill('HostPilot');
+    await hostPage.locator('#mpSaveName').click();
+    await guestPage.locator('#mpName').fill('GuestPilot');
+    await guestPage.locator('#mpSaveName').click();
     await hostPage.locator('#mpCreate').click();
     await hostPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), { timeout: 20000 });
     const roomCode = await hostPage.locator('#mpCode').inputValue();
@@ -107,6 +123,10 @@ const { chromium } = require('playwright');
     await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), { timeout: 20000 });
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 2, { timeout: 15000 })));
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getRemoteCount() > 0, { timeout: 15000 })));
+    const hostIdForNames = await hostPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
+    const guestIdForNames = await guestPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
+    await guestPage.waitForFunction(id => window.__DEFLECT_MP_BRIDGE__?.getRemoteNameForTest?.(id)==='HostPilot', hostIdForNames, { timeout: 10000 });
+    await hostPage.waitForFunction(id => window.__DEFLECT_MP_BRIDGE__?.getRemoteNameForTest?.(id)==='GuestPilot', guestIdForNames, { timeout: 10000 });
     const movementProbe = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest([1.25, 0, 4.5], 0.75));
     if (!movementProbe) throw new Error('Multiplayer integration: could not set deterministic host player position');
     const hostId = await hostPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
