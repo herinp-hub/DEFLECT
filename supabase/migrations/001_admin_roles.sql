@@ -18,7 +18,7 @@ create table public.deflect_bans (
 create table public.deflect_admin_actions (
   id bigint generated always as identity primary key,
   target_user uuid references auth.users(id) on delete cascade,
-  action text not null check (action in ('kick','ban','unban','announce','event')),
+  action text not null check (action in ('kick','ban','unban','announce','event','role_change')),
   payload jsonb not null default '{}'::jsonb,
   created_by uuid not null references auth.users(id),
   created_at timestamptz not null default now()
@@ -30,7 +30,7 @@ alter table public.deflect_admin_actions enable row level security;
 
 grant select on public.deflect_roles to authenticated;
 grant select on public.deflect_bans to authenticated;
-grant select on public.deflect_admin_actions to authenticated;
+grant select on public.deflect_admin_actions to authenticated, anon;
 
 create policy "authenticated users can read role labels"
   on public.deflect_roles for select to authenticated using (true);
@@ -38,9 +38,21 @@ create policy "authenticated users can read role labels"
 create policy "users can read their own ban status"
   on public.deflect_bans for select to authenticated using (user_id = auth.uid());
 
+create policy "staff can read ban records"
+  on public.deflect_bans for select to authenticated
+  using (exists (
+    select 1 from public.deflect_roles r
+    where r.user_id = auth.uid()
+      and r.role in ('owner','head_admin','admin')
+  ));
+
 create policy "users can read actions addressed to them and public notices"
   on public.deflect_admin_actions for select to authenticated
   using (target_user = auth.uid() or action in ('announce','event'));
+
+create policy "guests can read public admin notices"
+  on public.deflect_admin_actions for select to anon
+  using (action in ('announce','event'));
 
 create policy "staff can read moderation audit log"
   on public.deflect_admin_actions for select to authenticated
@@ -85,8 +97,10 @@ begin
     values(target_user, new_role, auth.uid())
     on conflict(user_id) do update set role = excluded.role, created_by = auth.uid(), created_at = now();
   end if;
+  insert into public.deflect_admin_actions(target_user, action, payload, created_by)
+  values(target_user, 'role_change', jsonb_build_object('role', new_role), auth.uid());
 end;
-$$;
+$;
 
 create or replace function public.deflect_admin_action(target_user uuid, action_name text, action_payload jsonb default '{}'::jsonb)
 returns bigint
