@@ -167,10 +167,10 @@ const { chromium } = require('playwright');
 
     // Move the real guest away so the live host loop cannot eliminate it during synthetic hit probes.
     const guestIdForHit = await guestPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
-    await guestPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest([50, 0, 50], 0));
+    await guestPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest([8, 0, 8], 0));
     await hostPage.waitForFunction(id => {
       const p = window.__DEFLECT_MP_BRIDGE__?.getRemotePlayerPositionForTest(id);
-      return Array.isArray(p) && p[0] > 49 && p[2] > 49;
+      return Array.isArray(p) && p[0] > 7.5 && p[2] > 7.5;
     }, guestIdForHit, { timeout: 10000 });
 
     // Exercise host-side directional/range hit validation without relying on frame timing.
@@ -180,7 +180,7 @@ const { chromium } = require('playwright');
       const valid = b.checkRemoteHits([{ id: 'contract-hit', state: { position: [1.5, 0, 0], alive: true } }]);
       const wrongDirection = b.checkRemoteHits([{ id: 'contract-wrong-way', state: { position: [-1.5, 0, 0], alive: true } }]);
       const outOfRange = b.checkRemoteHits([{ id: 'contract-far', state: { position: [8, 0, 0], alive: true } }]);
-      b.setOrbStateForTest([10, 0, 10], [0, 0, 0]);
+      b.setOrbStateForTest([8, 0, 8], [0, 0, 0]);
       return { valid, wrongDirection, outOfRange };
     });
     console.log('TRACE multiplayer: hit validation', JSON.stringify(hitProbe));
