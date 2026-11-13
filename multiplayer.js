@@ -47,7 +47,7 @@ function roomPlayers(){
   return Object.values(channel.presenceState()).flat().map(x=>x?.player).filter(Boolean);
 }
 function electHost(){
-  const list=roomPlayers().slice().sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));
+  const list=roomPlayers().slice().sort((a,b)=>((a.joinedAt||0)-(b.joinedAt||0))||String(a.id).localeCompare(String(b.id)));
   isHost=list[0]?.id===selfId;
   $("mpHost").textContent=isHost?"HOST · this device controls the shared ball":"CONNECTED · following room host";
   bridge()?.setNetworkState(true,isHost,selfId);
@@ -81,11 +81,11 @@ function startLoops(){
     if(!state)return;
     if(state.alive&&!lastAlive)send("match-start",{by:selfId,at:Date.now()});
     lastAlive=!!state.alive;
-    if(now-lastStateSent>75){
+    if(now-lastStateSent>120){
       lastStateSent=now;
       send("player-state",{id:selfId,name:playerName,state});
     }
-    if(isHost&&now-lastOrbSent>65){
+    if(isHost&&now-lastOrbSent>100){
       lastOrbSent=now;
       send("orb-state",{state});
       const hits=b?.checkRemoteHits?.([...players.entries()].map(([id,s])=>({id,state:s})))||[];
