@@ -61,6 +61,7 @@ assert.ok(loader.includes('/supabase-config.js'), 'Public Supabase config must b
 assert.ok(loader.includes('window.__DEFLECT_MP_BRIDGE__'), 'Game must expose its multiplayer bridge');
 assert.ok(loader.includes('mpApplySnapshot'), 'Multiplayer bridge must apply host orb snapshots');
 assert.ok(loader.includes('mpSetRemotePlayers'), 'Multiplayer bridge must render remote players');
+assert.ok(loader.includes('setOrbStateForTest'), 'Multiplayer bridge must expose deterministic orb sync test support');
 assert.ok(loader.includes('deflect:host-eliminated'), 'Host elimination must notify the multiplayer client');
 const multiplayerClient = fs.readFileSync(path.join(root, 'multiplayer.js'), 'utf8');
 assert.ok(multiplayerClient.includes('send("host-eliminated"'), 'Host elimination must be broadcast to the room');
