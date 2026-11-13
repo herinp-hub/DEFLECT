@@ -29,6 +29,7 @@ const { chromium } = require('playwright');
       if (!multiplayerProbe.bridge || !multiplayerProbe.hasPosition || !multiplayerProbe.hasOrb || multiplayerProbe.remoteCount !== 1 || !multiplayerProbe.panel) {
         throw new Error(`${viewport.name}: multiplayer bridge smoke test failed: ${JSON.stringify(multiplayerProbe)}`);
       }
+      await page.locator('#deflectMp summary').click();
       await page.locator('#mpCode').fill('ABC');
       await page.locator('#mpJoin').click();
       await page.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('6-character'));
