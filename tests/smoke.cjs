@@ -121,12 +121,14 @@ const { chromium } = require('playwright');
     await guestPage.locator('#mpCode').fill(roomCode);
     await guestPage.locator('#mpJoin').click();
     await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), { timeout: 20000 });
+    console.log('TRACE multiplayer: both clients connected');
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 2, { timeout: 15000 })));
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getRemoteCount() > 0, { timeout: 15000 })));
     const hostIdForNames = await hostPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
     const guestIdForNames = await guestPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
     await guestPage.waitForFunction(id => window.__DEFLECT_MP_BRIDGE__?.getRemoteNameForTest?.(id)==='HostPilot', hostIdForNames, { timeout: 10000 });
     await hostPage.waitForFunction(id => window.__DEFLECT_MP_BRIDGE__?.getRemoteNameForTest?.(id)==='GuestPilot', guestIdForNames, { timeout: 10000 });
+    console.log('TRACE multiplayer: username tags synced');
     const movementProbe = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest([1.25, 0, 4.5], 0.75));
     if (!movementProbe) throw new Error('Multiplayer integration: could not set deterministic host player position');
     const hostId = await hostPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
@@ -159,6 +161,7 @@ const { chromium } = require('playwright');
     const requested = await guestPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.requestDeflectForTest());
     if (!requested) throw new Error('Multiplayer integration: guest deflect request helper was rejected');
     await hostPage.waitForFunction(() => window.__deflectRemoteDeflectCalls > 0, { timeout: 10000 });
+    console.log('TRACE multiplayer: guest deflect reached host');
 
     // Exercise host-side directional/range hit validation without relying on frame timing.
     const hitProbe = await hostPage.evaluate(() => {
@@ -169,6 +172,7 @@ const { chromium } = require('playwright');
       const outOfRange = b.checkRemoteHits([{ id: 'contract-far', state: { position: [8, 0, 0], alive: true } }]);
       return { valid, wrongDirection, outOfRange };
     });
+    console.log('TRACE multiplayer: hit validation', JSON.stringify(hitProbe));
     if (!hitProbe.valid.includes('contract-hit') || hitProbe.wrongDirection.includes('contract-wrong-way') || hitProbe.outOfRange.includes('contract-far')) {
       throw new Error('Multiplayer integration: remote hit validation failed: ' + JSON.stringify(hitProbe));
     }
@@ -178,11 +182,13 @@ const { chromium } = require('playwright');
     if (!hostEliminated) throw new Error('Multiplayer integration: host elimination helper was rejected');
     await guestPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === false, { timeout: 10000 });
     await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('HOST ELIMINATED'), { timeout: 10000 });
+    console.log('TRACE multiplayer: host elimination broadcast received');
 
     // When the host leaves, the remaining peer must be elected host.
     await hostPage.locator('#mpLeave').click();
     await guestPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.isNetworkHost?.() === true, { timeout: 15000 });
     await guestPage.waitForFunction(() => document.querySelector('#mpHost')?.textContent.includes('HOST'), { timeout: 10000 });
+    console.log('TRACE multiplayer: host failover complete');
     console.log('PASS multiplayer integration: join/sync, deflect request, hit validation, host elimination and host failover');
     await hostPage.close();
     await guestPage.close();
