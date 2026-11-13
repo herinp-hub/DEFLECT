@@ -24,7 +24,7 @@ style.textContent=`
 document.head.appendChild(style);
 root.id="deflectMp";
 root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div class="mpBody">
-<div class="mpMuted">Choose your callsign, then create a room and share its six-character code.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE NAME</button></div><div class="mpRow"><input id="mpEmail" type="email" placeholder="ADMIN EMAIL (OPTIONAL)"><button id="mpLogin">ADMIN SIGN IN</button></div><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div></section>
+<div class="mpMuted">Choose your callsign, then create a room and share its six-character code.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE NAME</button></div><div class="mpRow"><input id="mpEmail" type="email" placeholder="ADMIN EMAIL (OPTIONAL)"><button id="mpLogin">ADMIN SIGN IN</button></div><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div><div id="mpEventTools" style="display:none;margin-top:8px"><input id="mpAdminMessage" maxlength="140" placeholder="ANNOUNCEMENT"><button id="mpAnnounce">SEND ANNOUNCEMENT</button><select id="mpAdminEvent"><option value="giant_orb">GIANT ORB</option><option value="double_rewards">DOUBLE COINS</option><option value="orb_rush">ORB RUSH</option><option value="low_gravity">LOW GRAVITY</option><option value="rainbow_arena">RAINBOW ARENA</option></select><button id="mpStartEvent">START 60-SECOND EVENT</button></div><div style="margin-top:8px"><button id="mpAuditRefresh">REFRESH AUDIT LOG</button><div id="mpAdminAudit" class="mpMuted"></div></div></section>
 <div class="mpRow"><button id="mpCreate">CREATE ROOM</button><button id="mpLeave" disabled>LEAVE</button></div>
 <div class="mpRow"><input id="mpCode" maxlength="6" placeholder="ROOM CODE" autocomplete="off"><button id="mpJoin">JOIN</button></div>
 <div id="mpRoom" class="mpMuted">Not connected to a room</div><div id="mpHost"></div>
@@ -41,7 +41,7 @@ let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="P
 window.__DEFLECT_MP_NAME__=playerName;
 let joinedAt=Date.now();
 $("mpName").value=playerName;
-let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString();
+let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0;
 const status=s=>$("mpStatus").textContent=s;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
@@ -62,12 +62,13 @@ async function refreshAuth(session){
     $("mpLogin").style.display="block";$("mpEmail").style.display="block";$("mpLogout").style.display="none";
     if(adminPoll)clearInterval(adminPoll);adminPoll=null;
   }
-  window.__DEFLECT_MP_ROLE__=currentRole;renderAdminConsole();
+  window.__DEFLECT_MP_ROLE__=currentRole;if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});renderAdminConsole();
 }
 function renderAdminConsole(){
   const panel=$("mpAdmin"),list=$("mpAdminMembers");
   const canAdmin=["owner","head_admin","admin","moderator"].includes(currentRole);
   panel.style.display=canAdmin?"block":"none";
+  $("mpEventTools").style.display=["owner","head_admin"].includes(currentRole)?"block":"none";
   if(!canAdmin)return;
   list.replaceChildren();
   const members=roomPlayers();
@@ -100,14 +101,17 @@ async function issueAdminAction(targetUser,action,payload){
 }
 async function pollAdminActions(){
   if(!authSession)return;
+  if(Date.now()-lastRoleRefresh>12000){lastRoleRefresh=Date.now();const roleResult=await supabase.rpc("deflect_my_role");if(!roleResult.error&&roleResult.data!==currentRole){currentRole=roleResult.data||"player";window.__DEFLECT_MP_ROLE__=currentRole;if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession.user.id,joinedAt}});renderAdminConsole();}}
   const since=lastAdminCheck;lastAdminCheck=new Date().toISOString();
   const result=await supabase.from("deflect_admin_actions").select("*").gt("created_at",since).order("created_at");
   if(result.error)return;
   for(const item of result.data||[]){
     if(item.target_user===authSession.user.id&&(item.action==="kick"||item.action==="ban")){
       await leave();status(item.action==="ban"?"You were banned from DEFLECT.":"An admin removed you from the room.");
-    }else if(item.action==="announce"||item.action==="event"){
-      status(item.payload?.message||"ADMIN EVENT · "+item.action.toUpperCase());
+    }else if(item.action==="event"){
+      bridge()?.applyAdminEvent?.(item.payload?.event);status(item.payload?.message||"ADMIN EVENT · "+item.action.toUpperCase());
+    }else if(item.action==="announce"){
+      status(item.payload?.message||"ADMIN ANNOUNCEMENT");
     }
   }
 }
@@ -219,10 +223,13 @@ window.addEventListener("deflect:request",event=>{
 });
 $("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(!clean){status("Enter a username first.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;localStorage.setItem("deflectPlayerName",clean);if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});status("Username saved: "+clean);};
 $("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};
+$("mpAnnounce").onclick=()=>{const message=$("mpAdminMessage").value.trim();if(message)issueAdminAction(null,"announce",{message});};
+$("mpStartEvent").onclick=()=>{const event=$("mpAdminEvent").value;issueAdminAction(null,"event",{event,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()});};
+$("mpAuditRefresh").onclick=async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}};
 $("mpLogin").onclick=async()=>{const email=$("mpEmail").value.trim();if(!email){status("Enter your admin email.");return;}const result=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});status(result.error?"Sign-in failed: "+result.error.message:"Magic link sent. Check your email, then return here.");};
 $("mpLogout").onclick=async()=>{await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
 supabase.auth.getSession().then(({data})=>refreshAuth(data.session));
-supabase.auth.onAuthStateChange((_event,session)=>{refreshAuth(session);});
+supabase.auth.onAuthStateChange((_event,session)=>{Promise.resolve().then(()=>refreshAuth(session));});
 $("mpCreate").onclick=()=>join(makeCode());
 $("mpJoin").onclick=()=>join($("mpCode").value);
 $("mpLeave").onclick=()=>{leave();status("You left the room.")};
