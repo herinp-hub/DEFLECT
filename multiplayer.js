@@ -19,6 +19,7 @@ style.textContent=`
 #deflectMp #mpPlayers{padding-left:17px;margin:6px 0}
 #deflectMp #mpStatus{min-height:16px;color:#8feaff;margin-top:5px}
 #deflectMp #mpHost{color:#ffc977;font-size:10px}
+@media(max-width:600px){#deflectMp{width:min(190px,calc(100vw - 28px))}#deflectMp summary{font-size:9px;padding:9px 8px}}
 `;
 document.head.appendChild(style);
 root.id="deflectMp";
