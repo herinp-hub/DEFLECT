@@ -24,7 +24,7 @@ style.textContent=`
 document.head.appendChild(style);
 root.id="deflectMp";
 root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div class="mpBody">
-<div class="mpMuted">Choose your callsign, then create a room and share its six-character code.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE NAME</button></div>
+<div class="mpMuted">Choose your callsign, then create a room and share its six-character code.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE NAME</button></div><div class="mpRow"><input id="mpEmail" type="email" placeholder="ADMIN EMAIL (OPTIONAL)"><button id="mpLogin">ADMIN SIGN IN</button></div><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div></section>
 <div class="mpRow"><button id="mpCreate">CREATE ROOM</button><button id="mpLeave" disabled>LEAVE</button></div>
 <div class="mpRow"><input id="mpCode" maxlength="6" placeholder="ROOM CODE" autocomplete="off"><button id="mpJoin">JOIN</button></div>
 <div id="mpRoom" class="mpMuted">Not connected to a room</div><div id="mpHost"></div>
@@ -41,10 +41,76 @@ let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="P
 window.__DEFLECT_MP_NAME__=playerName;
 let joinedAt=Date.now();
 $("mpName").value=playerName;
-let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,lastStateSent=0,lastOrbSent=0,loops=null;
+let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString();
 const status=s=>$("mpStatus").textContent=s;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
+
+async function refreshAuth(session){
+  authSession=session||null;currentRole="player";
+  if(authSession){
+    const roleResult=await supabase.rpc("deflect_my_role");
+    if(!roleResult.error)currentRole=roleResult.data||"player";
+    const banResult=await supabase.from("deflect_bans").select("user_id").eq("user_id",authSession.user.id).maybeSingle();
+    if(!banResult.error&&banResult.data){status("This account is banned from DEFLECT.");await leave();}
+    $("mpAuthStatus").textContent=authSession.user.email+" · "+currentRole.toUpperCase();
+    $("mpLogin").style.display="none";$("mpEmail").style.display="none";$("mpLogout").style.display="block";
+    if(adminPoll)clearInterval(adminPoll);
+    lastAdminCheck=new Date().toISOString();adminPoll=setInterval(pollAdminActions,2500);
+  }else{
+    $("mpAuthStatus").textContent="Not signed in · players can join as guests";
+    $("mpLogin").style.display="block";$("mpEmail").style.display="block";$("mpLogout").style.display="none";
+    if(adminPoll)clearInterval(adminPoll);adminPoll=null;
+  }
+  window.__DEFLECT_MP_ROLE__=currentRole;renderAdminConsole();
+}
+function renderAdminConsole(){
+  const panel=$("mpAdmin"),list=$("mpAdminMembers");
+  const canAdmin=["owner","head_admin","admin","moderator"].includes(currentRole);
+  panel.style.display=canAdmin?"block":"none";
+  if(!canAdmin)return;
+  list.replaceChildren();
+  const members=roomPlayers();
+  if(!members.length){list.textContent="Join a room to manage players.";return;}
+  for(const p of members){
+    const row=document.createElement("div");row.style.cssText="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:7px";
+    const label=document.createElement("span");label.textContent=(p.name||"Player")+" · "+(p.role||"player");label.style.flex="1";row.appendChild(label);
+    if(p.userId&&p.userId!==authSession?.user?.id){
+      if(currentRole==="owner"){
+        const select=document.createElement("select");select.style.cssText="max-width:105px;background:#102b48;color:white;border:1px solid #78eaff77;border-radius:6px;padding:5px";
+        ["player","moderator","admin","head_admin"].forEach(role=>{const option=document.createElement("option");option.value=role;option.textContent=role.toUpperCase();select.appendChild(option);});
+        select.value=p.role||"player";const assign=document.createElement("button");assign.textContent="ROLE";assign.style.width="auto";
+        assign.onclick=async()=>{const result=await supabase.rpc("deflect_assign_role",{target_user:p.userId,new_role:select.value});status(result.error?"Role update failed: "+result.error.message:"Role updated for "+p.name);};
+        row.append(select,assign);
+      }
+      if(["owner","head_admin","admin","moderator"].includes(currentRole)){
+        const kick=document.createElement("button");kick.textContent="KICK";kick.style.width="auto";kick.onclick=()=>issueAdminAction(p.userId,"kick",{});
+        row.appendChild(kick);
+      }
+      if(["owner","head_admin","admin"].includes(currentRole)){
+        const ban=document.createElement("button");ban.textContent="BAN";ban.style.width="auto";ban.onclick=()=>issueAdminAction(p.userId,"ban",{reason:"DEFLECT moderation"});row.appendChild(ban);
+      }
+    }else if(!p.userId){const guest=document.createElement("small");guest.textContent=" · guest (sign-in required for moderation)";row.appendChild(guest);}
+    list.appendChild(row);
+  }
+}
+async function issueAdminAction(targetUser,action,payload){
+  const result=await supabase.rpc("deflect_admin_action",{target_user:targetUser,action_name:action,action_payload:payload});
+  status(result.error?"Action failed: "+result.error.message:action.toUpperCase()+" sent.");
+}
+async function pollAdminActions(){
+  if(!authSession)return;
+  const since=lastAdminCheck;lastAdminCheck=new Date().toISOString();
+  const result=await supabase.from("deflect_admin_actions").select("*").gt("created_at",since).order("created_at");
+  if(result.error)return;
+  for(const item of result.data||[]){
+    if(item.target_user===authSession.user.id&&(item.action==="kick"||item.action==="ban")){
+      await leave();status(item.action==="ban"?"You were banned from DEFLECT.":"An admin removed you from the room.");
+    }else if(item.action==="announce"||item.action==="event"){
+      status(item.payload?.message||"ADMIN EVENT · "+item.action.toUpperCase());
+    }
+  }
+}
 function roomPlayers(){
   if(!channel)return [];
   return Object.values(channel.presenceState()).flat().map(x=>x?.player).filter(Boolean);
@@ -65,6 +131,7 @@ function render(){
   unique.forEach(p=>{const li=document.createElement("li");li.textContent=(p.name||"Player")+(p.id===selfId?" (YOU)":"");$("mpPlayers").appendChild(li)});
   electHost();
   applyRemotePlayers();
+  renderAdminConsole();
 }
 function applyRemotePlayers(){
   const remote=[...players.entries()].map(([id,state])=>({id,state}));
@@ -86,7 +153,7 @@ function startLoops(){
     lastAlive=!!state.alive;
     if(now-lastStateSent>120){
       lastStateSent=now;
-      send("player-state",{id:selfId,name:playerName,state});
+      send("player-state",{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,state});
     }
     if(isHost&&now-lastOrbSent>100){
       lastOrbSent=now;
@@ -114,7 +181,7 @@ async function join(raw){
     .on("presence",{event:"join"},render).on("presence",{event:"leave"},()=>{render();applyRemotePlayers()})
     .on("broadcast",{event:"player-state"},({payload})=>{
       if(!payload?.id||payload.id===selfId||!payload.state)return;
-      players.set(payload.id,{...payload.state,name:payload.name||"Player"});applyRemotePlayers();
+      players.set(payload.id,{...payload.state,name:payload.name||"Player",role:payload.role||"player",userId:payload.userId||null});applyRemotePlayers();
       if(payload.state.alive&&!bridge()?.getLocalState?.()?.alive)startMatch();
     })
     .on("broadcast",{event:"orb-state"},({payload})=>{
@@ -135,7 +202,7 @@ async function join(raw){
     if(s==="SUBSCRIBED"){
       channel=next;
       joinedAt=Date.now();
-      await next.track({player:{id:selfId,name:playerName,joinedAt}});
+      await next.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});
       $("mpRoom").textContent="ROOM CODE: "+room+" · share with friends";
       $("mpCode").value=room;$("mpLeave").disabled=false;
       status("Connected as "+playerName);render();startLoops();
@@ -150,8 +217,12 @@ window.addEventListener("deflect:request",event=>{
   const p=event.detail?.position;
   if(channel&&Array.isArray(p))send("deflect-request",{id:selfId,position:p});
 });
-$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(!clean){status("Enter a username first.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;localStorage.setItem("deflectPlayerName",clean);if(channel)await channel.track({player:{id:selfId,name:playerName,joinedAt}});status("Username saved: "+clean);};
+$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(!clean){status("Enter a username first.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;localStorage.setItem("deflectPlayerName",clean);if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});status("Username saved: "+clean);};
 $("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};
+$("mpLogin").onclick=async()=>{const email=$("mpEmail").value.trim();if(!email){status("Enter your admin email.");return;}const result=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});status(result.error?"Sign-in failed: "+result.error.message:"Magic link sent. Check your email, then return here.");};
+$("mpLogout").onclick=async()=>{await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
+supabase.auth.getSession().then(({data})=>refreshAuth(data.session));
+supabase.auth.onAuthStateChange((_event,session)=>{refreshAuth(session);});
 $("mpCreate").onclick=()=>join(makeCode());
 $("mpJoin").onclick=()=>join($("mpCode").value);
 $("mpLeave").onclick=()=>{leave();status("You left the room.")};
