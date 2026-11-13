@@ -24,7 +24,7 @@ style.textContent=`
 document.head.appendChild(style);
 root.id="deflectMp";
 root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div class="mpBody">
-<div class="mpMuted">Create a room and share its six-character code.</div>
+<div class="mpMuted">Choose your callsign, then create a room and share its six-character code.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE NAME</button></div>
 <div class="mpRow"><button id="mpCreate">CREATE ROOM</button><button id="mpLeave" disabled>LEAVE</button></div>
 <div class="mpRow"><input id="mpCode" maxlength="6" placeholder="ROOM CODE" autocomplete="off"><button id="mpJoin">JOIN</button></div>
 <div id="mpRoom" class="mpMuted">Not connected to a room</div><div id="mpHost"></div>
@@ -37,7 +37,7 @@ if(!cfg?.url||!cfg?.publishableKey){$("mpStatus").textContent="Supabase setup is
 const supabase=createClient(cfg.url,cfg.publishableKey,{realtime:{params:{eventsPerSecond:20}}});
 const selfId=crypto.randomUUID();
 window.__DEFLECT_MP_SELF_ID__=selfId;
-const playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="Pilot-"+Math.floor(1000+Math.random()*9000);localStorage.setItem("deflectPlayerName",n)}return n})();
+let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="Pilot-"+Math.floor(1000+Math.random()*9000);localStorage.setItem("deflectPlayerName",n)}return n})();\nwindow.__DEFLECT_MP_NAME__=playerName;\nlet joinedAt=Date.now();\n$("mpName").value=playerName;
 let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,lastStateSent=0,lastOrbSent=0,loops=null;
 const status=s=>$("mpStatus").textContent=s;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
@@ -111,7 +111,7 @@ async function join(raw){
     .on("presence",{event:"join"},render).on("presence",{event:"leave"},()=>{render();applyRemotePlayers()})
     .on("broadcast",{event:"player-state"},({payload})=>{
       if(!payload?.id||payload.id===selfId||!payload.state)return;
-      players.set(payload.id,payload.state);applyRemotePlayers();
+      players.set(payload.id,{...payload.state,name:payload.name||"Player"});applyRemotePlayers();
       if(payload.state.alive&&!bridge()?.getLocalState?.()?.alive)startMatch();
     })
     .on("broadcast",{event:"orb-state"},({payload})=>{
@@ -131,7 +131,7 @@ async function join(raw){
   next.subscribe(async s=>{
     if(s==="SUBSCRIBED"){
       channel=next;
-      await next.track({player:{id:selfId,name:playerName,joinedAt:Date.now()}});
+      joinedAt=Date.now();\n      await next.track({player:{id:selfId,name:playerName,joinedAt}});
       $("mpRoom").textContent="ROOM CODE: "+room+" · share with friends";
       $("mpCode").value=room;$("mpLeave").disabled=false;
       status("Connected as "+playerName);render();startLoops();
@@ -146,7 +146,7 @@ window.addEventListener("deflect:request",event=>{
   const p=event.detail?.position;
   if(channel&&Array.isArray(p))send("deflect-request",{id:selfId,position:p});
 });
-$("mpCreate").onclick=()=>join(makeCode());
+$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(!clean){status("Enter a username first.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;localStorage.setItem("deflectPlayerName",clean);if(channel)await channel.track({player:{id:selfId,name:playerName,joinedAt}});status("Username saved: "+clean);};\n$("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};\n$("mpCreate").onclick=()=>join(makeCode());
 $("mpJoin").onclick=()=>join($("mpCode").value);
 $("mpLeave").onclick=()=>{leave();status("You left the room.")};
 $("mpCode").onkeydown=e=>{if(e.key==="Enter")join($("mpCode").value)};
