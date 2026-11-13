@@ -87,6 +87,28 @@ const { chromium } = require('playwright');
       console.log(`PASS ${viewport.name}: game loads, canvas renders, arena starts, no page errors`);
       await page.close();
     }
+
+    // Exercise two real browser clients against the configured Supabase Realtime project.
+    const hostPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const guestPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    for (const peer of [hostPage, guestPage]) {
+      await peer.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+      await peer.waitForSelector('#deflectMp', { timeout: 20000 });
+      await peer.locator('#deflectMp summary').click();
+    }
+    await hostPage.locator('#mpCreate').click();
+    await hostPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), { timeout: 20000 });
+    const roomCode = await hostPage.locator('#mpCode').inputValue();
+    await guestPage.locator('#mpCode').fill(roomCode);
+    await guestPage.locator('#mpJoin').click();
+    await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), { timeout: 20000 });
+    await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 2, { timeout: 15000 })));
+    await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getRemoteCount() > 0, { timeout: 15000 })));
+    await guestPage.locator('#mpLeave').click();
+    await hostPage.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 1, { timeout: 15000 });
+    console.log('PASS multiplayer integration: two clients join, see each other, and leave cleanly');
+    await hostPage.close();
+    await guestPage.close();
   } finally {
     await browser.close();
   }
