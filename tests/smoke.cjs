@@ -126,9 +126,44 @@ const { chromium } = require('playwright');
       throw new Error('Multiplayer integration: guest client overrode the host-authoritative orb snapshot: ' + JSON.stringify(stableGuestOrb));
     }
 
-    await guestPage.locator('#mpLeave').click();
-    await hostPage.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 1, { timeout: 15000 });
-    console.log('PASS multiplayer integration: two clients join, see each other, and leave cleanly');
+    // Verify the guest's real deflect wrapper sends a request that reaches the host.
+    await hostPage.evaluate(() => {
+      const bridge = window.__DEFLECT_MP_BRIDGE__;
+      const original = bridge.tryRemoteDeflect;
+      window.__deflectRemoteDeflectCalls = 0;
+      bridge.tryRemoteDeflect = position => {
+        window.__deflectRemoteDeflectCalls++;
+        return original(position);
+      };
+    });
+    const requested = await guestPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.requestDeflectForTest());
+    if (!requested) throw new Error('Multiplayer integration: guest deflect request helper was rejected');
+    await hostPage.waitForFunction(() => window.__deflectRemoteDeflectCalls > 0, { timeout: 10000 });
+
+    // Exercise host-side directional/range hit validation without relying on frame timing.
+    const hitProbe = await hostPage.evaluate(() => {
+      const b = window.__DEFLECT_MP_BRIDGE__;
+      b.setOrbStateForTest([0, 0, 0], [1, 0, 0]);
+      const valid = b.checkRemoteHits([{ id: 'contract-hit', state: { position: [1.5, 0, 0], alive: true } }]);
+      const wrongDirection = b.checkRemoteHits([{ id: 'contract-wrong-way', state: { position: [-1.5, 0, 0], alive: true } }]);
+      const outOfRange = b.checkRemoteHits([{ id: 'contract-far', state: { position: [8, 0, 0], alive: true } }]);
+      return { valid, wrongDirection, outOfRange };
+    });
+    if (!hitProbe.valid.includes('contract-hit') || hitProbe.wrongDirection.includes('contract-wrong-way') || hitProbe.outOfRange.includes('contract-far')) {
+      throw new Error('Multiplayer integration: remote hit validation failed: ' + JSON.stringify(hitProbe));
+    }
+
+    // Verify a host elimination is broadcast and applied by the guest.
+    const hostEliminated = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.triggerHostEliminationForTest());
+    if (!hostEliminated) throw new Error('Multiplayer integration: host elimination helper was rejected');
+    await guestPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === false, { timeout: 10000 });
+    await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('HOST ELIMINATED'), { timeout: 10000 });
+
+    // When the host leaves, the remaining peer must be elected host.
+    await hostPage.locator('#mpLeave').click();
+    await guestPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.isNetworkHost?.() === true, { timeout: 15000 });
+    await guestPage.waitForFunction(() => document.querySelector('#mpHost')?.textContent.includes('HOST'), { timeout: 10000 });
+    console.log('PASS multiplayer integration: join/sync, deflect request, hit validation, host elimination and host failover');
     await hostPage.close();
     await guestPage.close();
   } finally {
