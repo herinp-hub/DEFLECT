@@ -54,10 +54,13 @@ function electHost(){
 function render(){
   const list=roomPlayers();
   const unique=[...new Map(list.map(p=>[p.id,p])).values()];
+  const present=new Set(unique.map(p=>p.id));
+  for(const id of players.keys())if(!present.has(id))players.delete(id);
   $("mpPlayers").replaceChildren();
-  if(!unique.length){$("mpPlayers").innerHTML='<li class="mpMuted">Waiting for players…</li>';return}
+  if(!unique.length){$("mpPlayers").innerHTML='<li class="mpMuted">Waiting for players…</li>';applyRemotePlayers();return}
   unique.forEach(p=>{const li=document.createElement("li");li.textContent=(p.name||"Player")+(p.id===selfId?" (YOU)":"");$("mpPlayers").appendChild(li)});
   electHost();
+  applyRemotePlayers();
 }
 function applyRemotePlayers(){
   const remote=[...players.entries()].map(([id,state])=>({id,state}));
@@ -108,6 +111,7 @@ async function join(raw){
     .on("broadcast",{event:"player-state"},({payload})=>{
       if(!payload?.id||payload.id===selfId||!payload.state)return;
       players.set(payload.id,payload.state);applyRemotePlayers();
+      if(payload.state.alive&&!bridge()?.getLocalState?.()?.alive)startMatch();
     })
     .on("broadcast",{event:"orb-state"},({payload})=>{
       if(!isHost&&payload?.state)bridge()?.applySnapshot(payload.state);
