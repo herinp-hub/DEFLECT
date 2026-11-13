@@ -73,6 +73,9 @@ assert.ok(adminSql.includes('Only the owner can assign or revoke roles'), 'Only 
 assert.ok(adminSql.includes('deflect_admin_action'), 'Moderation actions must be server-authorized');
 assert.ok(adminSql.includes('deflect_admin_actions'), 'Admin actions must be auditable');
 assert.ok(adminSql.includes('staff can read moderation audit log'), 'Staff audit log must be protected by RLS');
+assert.ok(adminSql.includes("role_change"), 'Role changes must be included in the audit trail');
+assert.ok(adminSql.includes('guests can read public admin notices'), 'Guests must receive authorized public admin events');
+assert.ok(adminSql.includes('staff can read ban records'), 'Ban records must be staff-protected');
 assert.ok(loader.includes('deflect:host-eliminated'), 'Host elimination must notify the multiplayer client');
 const multiplayerClient = fs.readFileSync(path.join(root, 'multiplayer.js'), 'utf8');
 assert.ok(multiplayerClient.includes('send("host-eliminated"'), 'Host elimination must be broadcast to the room');
