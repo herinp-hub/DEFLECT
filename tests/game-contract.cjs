@@ -34,6 +34,9 @@ assert.ok(loader.includes('const featureLayer='), 'Feature layer must be embedde
 assert.ok(loader.includes('featureVaultToggle'), 'Missing dedicated feature vault button');
 
 assert.ok(loader.includes('powerPulseUntil > performance.now() ? 6.2'), 'Pulse power must extend deflect range');
+assert.ok(loader.includes('targetId=-4'), 'Training target break must send the orb back to the player');
+assert.ok(loader.includes('RETURN CAUGHT — NEXT TARGET'), 'Training return must be caught before the next target launch');
+assert.ok(loader.includes('display:none!important'), 'Game should boot directly into the Sky Lobby');
 
 
 const html = zlib.gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8');
@@ -82,6 +85,9 @@ assert.ok(loader.includes('deflect:host-eliminated'), 'Host elimination must not
 const multiplayerClient = fs.readFileSync(path.join(root, 'multiplayer.js'), 'utf8');
 assert.ok(multiplayerClient.includes('send("host-eliminated"'), 'Host elimination must be broadcast to the room');
 assert.ok(multiplayerClient.includes('event:"host-eliminated"'), 'Room clients must handle host elimination');
+assert.ok(multiplayerClient.includes('runAdminCommand'), 'Admin command console must be wired');
+assert.ok(multiplayerClient.includes('/unban'), 'Admin command help must include unban');
+assert.ok(multiplayerClient.includes('deflect_assign_role'), 'Owner role command must use the secure database function');
 
 
 console.log('PASS multiplayer client/config are wired into the game shell');
