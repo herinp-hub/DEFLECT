@@ -9,17 +9,23 @@ on:
     - cron: '0 */2 * * *'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   browser-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: npm install
       - run: npx playwright install --with-deps chromium
+      - name: Verify packed gameplay source
+        run: npm run test:game-contract
       - name: Start static server
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/deflect-server.log 2>&1 &
