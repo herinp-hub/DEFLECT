@@ -138,7 +138,7 @@ function roomPlayers(){
 }
 
 function parseCommandWords(input){
-  return [...input.matchAll(/"([^"]+)"|'([^']+)'|(\\S+)/g)].map(m=>m[1]||m[2]||m[3]);
+  return [...input.matchAll(/"([^"]+)"|'([^']+)'|(\S+)/g)].map(m=>m[1]||m[2]||m[3]);
 }
 function findRoomPlayer(name){
   const matches=roomPlayers().filter(p=>(p.name||"").toLowerCase()===name.toLowerCase());
@@ -147,7 +147,7 @@ function findRoomPlayer(name){
 async function runAdminCommand(){
   const raw=$("mpAdminCommand").value.trim();$("mpAdminCommand").value="";
   if(!raw)return;
-  const match=raw.match(/^\\/?([a-z]+)(?:\\s+([\\s\\S]*))?$/i);
+  const match=raw.match(/^\/?([a-z]+)(?:\s+([\s\S]*))?$/i);
   if(!match){status("Commands start with / — try /help.");return;}
   const command=match[1].toLowerCase(),args=parseCommandWords(match[2]||"");
   const staff=["owner","head_admin","admin","moderator"].includes(currentRole);
