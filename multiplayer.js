@@ -24,7 +24,7 @@ style.textContent=`
 document.head.appendChild(style);
 root.id="deflectMp";
 root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div class="mpBody">
-<div class="mpMuted">Choose your callsign, then create a room and share its six-character code.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE NAME</button></div><div class="mpRow"><input id="mpEmail" type="email" placeholder="ADMIN EMAIL (OPTIONAL)"><button id="mpLogin">ADMIN SIGN IN</button></div><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div><div id="mpEventTools" style="display:none;margin-top:8px"><input id="mpAdminMessage" maxlength="140" placeholder="ANNOUNCEMENT"><button id="mpAnnounce">SEND ANNOUNCEMENT</button><select id="mpAdminEvent"><option value="giant_orb">GIANT ORB</option><option value="double_rewards">DOUBLE COINS</option><option value="orb_rush">ORB RUSH</option><option value="low_gravity">LOW GRAVITY</option><option value="rainbow_arena">RAINBOW ARENA</option><option value="meteor_shower">METEOR SHOWER</option></select><button id="mpStartEvent">START 60-SECOND EVENT</button></div><div style="margin-top:8px"><button id="mpAuditRefresh">REFRESH AUDIT LOG</button><div id="mpAdminAudit" class="mpMuted"></div></div><div id="mpBanTools" style="display:none;margin-top:8px"><button id="mpBansRefresh">REFRESH BAN LIST</button><div id="mpAdminBans" class="mpMuted"></div></div></section>
+<div class="mpMuted">Choose your callsign, then create a room and share its six-character code.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE NAME</button></div><div class="mpRow"><input id="mpEmail" type="email" placeholder="ADMIN EMAIL (OPTIONAL)"><button id="mpLogin">ADMIN SIGN IN</button></div><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div><div id="mpEventTools" style="display:none;margin-top:8px"><input id="mpAdminMessage" maxlength="140" placeholder="ANNOUNCEMENT"><button id="mpAnnounce">SEND ANNOUNCEMENT</button><select id="mpAdminEvent"><option value="giant_orb">GIANT ORB</option><option value="double_rewards">DOUBLE COINS</option><option value="orb_rush">ORB RUSH</option><option value="low_gravity">LOW GRAVITY</option><option value="rainbow_arena">RAINBOW ARENA</option><option value="meteor_shower">METEOR SHOWER</option></select><button id="mpStartEvent">START 60-SECOND EVENT</button></div><div style="margin-top:8px"><button id="mpAuditRefresh">REFRESH AUDIT LOG</button><div id="mpAdminAudit" class="mpMuted"></div></div><div id="mpBanTools" style="display:none;margin-top:8px"><button id="mpBansRefresh">REFRESH BAN LIST</button><div id="mpAdminBans" class="mpMuted"></div></div><div style="margin-top:9px;padding-top:8px;border-top:1px solid #78eaff44"><b style="color:#8feaff">ADMIN COMMANDS</b><input id="mpAdminCommand" maxlength="220" autocomplete="off" placeholder="/help · /kick Player · /announce Hello"><button id="mpCommandRun">RUN COMMAND</button><div class="mpMuted">Try /help for the full command list. Commands are checked by Supabase permissions.</div></div></section>
 <div class="mpRow"><button id="mpCreate">CREATE ROOM</button><button id="mpLeave" disabled>LEAVE</button></div>
 <div class="mpRow"><input id="mpCode" maxlength="6" placeholder="ROOM CODE" autocomplete="off"><button id="mpJoin">JOIN</button></div>
 <div id="mpRoom" class="mpMuted">Not connected to a room</div><div id="mpHost"></div>
@@ -136,6 +136,58 @@ function roomPlayers(){
   if(!channel)return [];
   return Object.values(channel.presenceState()).flat().map(x=>x?.player).filter(Boolean);
 }
+
+function parseCommandWords(input){
+  return [...input.matchAll(/"([^"]+)"|'([^']+)'|(\\S+)/g)].map(m=>m[1]||m[2]||m[3]);
+}
+function findRoomPlayer(name){
+  const matches=roomPlayers().filter(p=>(p.name||"").toLowerCase()===name.toLowerCase());
+  return matches.length===1?{player:matches[0]}:{matches};
+}
+async function runAdminCommand(){
+  const raw=$("mpAdminCommand").value.trim();$("mpAdminCommand").value="";
+  if(!raw)return;
+  const match=raw.match(/^\\/?([a-z]+)(?:\\s+([\\s\\S]*))?$/i);
+  if(!match){status("Commands start with / — try /help.");return;}
+  const command=match[1].toLowerCase(),args=parseCommandWords(match[2]||"");
+  const staff=["owner","head_admin","admin","moderator"].includes(currentRole);
+  if(!staff){status("Admin sign-in required.");return;}
+  const target=(name)=>{const found=findRoomPlayer(name);if(found.matches){status(found.matches.length?"More than one player has that name. Use a unique username.":"Player not found in your current room.");return null;}if(!found.player.userId){status("That player is a guest. They must sign in before moderation.");return null;}if(found.player.userId===authSession?.user?.id){status("You cannot moderate yourself.");return null;}return found.player;};
+  if(command==="help"){status("/players · /kick <name> · /ban <name> [reason] · /unban <id prefix> · /role <name> <role> · /announce <text> · /event <name> · /bans · /audit");return;}
+  if(command==="players"){const list=roomPlayers();status(list.length?"ROOM: "+list.map(p=>(p.name||"Player")+" ["+(p.role||"player")+"]").join(" · "):"Join a room to list players.");return;}
+  if(command==="announce"){const message=(match[2]||"").trim();if(!message){status("Usage: /announce <message>");return;}await issueAdminAction(null,"announce",{message});return;}
+  if(command==="event"){
+    const event=(args[0]||"").toLowerCase().replaceAll("-","_");
+    const allowed=["giant_orb","double_rewards","orb_rush","low_gravity","rainbow_arena","meteor_shower"];
+    if(!allowed.includes(event)){status("Usage: /event giant_orb|double_rewards|orb_rush|low_gravity|rainbow_arena|meteor_shower");return;}
+    await issueAdminAction(null,"event",{event,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()});return;
+  }
+  if(command==="kick"||command==="ban"){
+    const name=args[0];if(!name){status("Usage: /"+command+" <player name> [reason]");return;}
+    const p=target(name);if(!p)return;
+    await issueAdminAction(p.userId,command,{reason:args.slice(1).join(" ")||"DEFLECT moderation"});return;
+  }
+  if(command==="unban"){
+    const prefix=(args[0]||"").toLowerCase();if(prefix.length<6){status("Usage: /unban <at least 6 characters of user ID>");return;}
+    const result=await supabase.from("deflect_bans").select("user_id");
+    if(result.error){status("Could not read bans: "+result.error.message);return;}
+    const matches=(result.data||[]).filter(x=>x.user_id.toLowerCase().startsWith(prefix));
+    if(matches.length!==1){status(matches.length?"That ID prefix matches multiple bans. Add more characters.":"No matching ban found.");return;}
+    await issueAdminAction(matches[0].user_id,"unban",{});return;
+  }
+  if(command==="role"){
+    if(currentRole!=="owner"){status("Only the owner can change staff roles.");return;}
+    const name=args[0],role=(args[1]||"").toLowerCase();
+    if(!name||!["player","moderator","admin","head_admin"].includes(role)){status('Usage: /role "player name" player|moderator|admin|head_admin');return;}
+    const p=target(name);if(!p)return;
+    const result=await supabase.rpc("deflect_assign_role",{target_user:p.userId,new_role:role});
+    status(result.error?"Role update failed: "+result.error.message:"Role set: "+p.name+" → "+role.toUpperCase());return;
+  }
+  if(command==="bans"){await refreshAdminBans();status("Ban list refreshed.");return;}
+  if(command==="audit"){$("mpAuditRefresh").click();status("Audit log refreshed.");return;}
+  status("Unknown command. Try /help.");
+}
+
 function electHost(){
   const list=roomPlayers().slice().sort((a,b)=>((a.joinedAt||0)-(b.joinedAt||0))||String(a.id).localeCompare(String(b.id)));
   isHost=list[0]?.id===selfId;
@@ -243,6 +295,8 @@ $("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};
 $("mpAnnounce").onclick=()=>{const message=$("mpAdminMessage").value.trim();if(message)issueAdminAction(null,"announce",{message});};
 $("mpStartEvent").onclick=()=>{const event=$("mpAdminEvent").value;issueAdminAction(null,"event",{event,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()});};
 $("mpBansRefresh").onclick=refreshAdminBans;
+$("mpCommandRun").onclick=runAdminCommand;
+$("mpAdminCommand").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();runAdminCommand();}};
 $("mpAuditRefresh").onclick=async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}};
 $("mpLogin").onclick=async()=>{const email=$("mpEmail").value.trim();if(!email){status("Enter your admin email.");return;}const result=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});status(result.error?"Sign-in failed: "+result.error.message:"Magic link sent. Check your email, then return here.");};
 $("mpLogout").onclick=async()=>{await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
