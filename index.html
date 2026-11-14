@@ -1,7 +1,11 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="theme-color" content="#070b17"><title>DEFLECT — Rift Arena</title></head><body style="margin:0;background:#070b17;color:#eaf7ff;font-family:system-ui;display:grid;place-items:center;min-height:100vh"><div id="loading">Loading DEFLECT…</div><script>
 (async()=>{try{let encoded='';for(let i=0;i<25;i++){const n=String(i).padStart(3,'0');const r=await fetch('/game/chunks/'+n+'.txt');if(!r.ok)throw new Error('Missing game chunk '+n);encoded+=(await r.text()).trim()}const raw=atob(encoded);const bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));let html=await new Response(stream).text();
-html=html.replace('</head>', '<style id="deflect-menu-input-guard">#menu{position:fixed!important;inset:0!important;margin:0!important;z-index:1000!important}#menu *{touch-action:manipulation!important}#deflectMp{z-index:1100!important}</style></head>');
+html=html.replace('</head>', '<style id="deflect-menu-input-guard">#menu{display:none!important;position:fixed!important;inset:0!important;margin:0!important;z-index:1000!important}#menu *{touch-action:manipulation!important}#deflectMp{z-index:1100!important}</style></head>');
 const gameplayPatches=[
+  ["document.addEventListener(\n  \"pointerdown\",\n  (e) => {\n    const btn = e.target.closest(\".overlay button, #islandHud button, #lobbyActionPrompt\");\n    if (!btn || btn.disabled) return;\n    e.preventDefault();\n    btn.click();\n  },\n  true,\n);",""],
+  ["let dest = targetId === -1 ? player.position : targetId === -3 && trainingMode ? trainingTargets[trainingTargetIndex]?.position : bots[targetId]?.alive ? bots[targetId].group.position : null;","let dest = targetId === -1 || targetId === -4 ? player.position : targetId === -3 && trainingMode ? trainingTargets[trainingTargetIndex]?.position : bots[targetId]?.alive ? bots[targetId].group.position : null;"],
+  ["let target = targetId === -1 ? player.position : targetId === -3 && trainingMode ? trainingTargets[trainingTargetIndex]?.position : bots[targetId]?.alive ? bots[targetId].group.position : null;","let target = targetId === -1 || targetId === -4 ? player.position : targetId === -3 && trainingMode ? trainingTargets[trainingTargetIndex]?.position : bots[targetId]?.alive ? bots[targetId].group.position : null;"],
+  ["if(trainingMode && targetId===-3 && target && orb.position.distanceTo(target)<1.0){\n      const broken=trainingTargets[trainingTargetIndex];if(broken){broken.active=false;broken.respawn=3.0;broken.target.visible=false;broken.core.visible=false;broken.post.visible=false;}\n      orb.userData.vel=null;targetId=-2;ballTimer=0.65;document.getElementById('statusHud').textContent='TARGET BROKEN — REGENERATING';\n    } else if (","if(trainingMode && targetId===-3 && target && orb.position.distanceTo(target)<1.0){\n      const broken=trainingTargets[trainingTargetIndex];if(broken){broken.active=false;broken.respawn=3.0;broken.target.visible=false;broken.core.visible=false;broken.post.visible=false;}\n      const returnDirection=player.position.clone().add(new THREE.Vector3(0,1,0)).sub(orb.position).normalize();orb.userData.vel=returnDirection.multiplyScalar(trainingBallSpeed);targetId=-4;ballTimer=0;setOrbColor(true);document.getElementById('statusHud').textContent='TARGET BROKEN — RETURNING TO YOU';\n    } else if(trainingMode && targetId===-4 && target && orb.position.distanceTo(target.clone().add(new THREE.Vector3(0,1,0)))<1.0){orb.userData.vel=null;targetId=-2;ballTimer=0.45;playerAttemptUsed=false;document.getElementById('statusHud').textContent='RETURN CAUGHT — NEXT TARGET';} else if ("],
   ["position:target.getWorldPosition(new THREE.Vector3())","position:core.getWorldPosition(new THREE.Vector3())"],
   ["orb.position.distanceTo(target)<1.0","orb.position.distanceTo(target)<1.3"],
   ["if(trainingMode){trainingMisses++;const st=document.getElementById('trainingStats');if(st)st.textContent='Successful deflects: '+trainingHits+' • Misses: '+trainingMisses;document.getElementById(\"statusHud\").textContent=\"MISSED — TRY AGAIN\";orb.userData.vel=null;targetId=-2;ballTimer=0.8;playerAttemptUsed=true;}","if(trainingMode){trainingMisses++;const st=document.getElementById('trainingStats');if(st)st.textContent='Successful deflects: '+trainingHits+' • Misses: '+trainingMisses;trainingMode=false;powerShieldUntil=0;const h=document.getElementById('islandHud');if(h){h.querySelector('#trainingPanel').style.display='none';h.querySelector('#trainingToggle').textContent='TRAIN';}eliminate(-1);}"],
@@ -12,5 +16,25 @@ const featureLayer="\n/* DEFLECT feature expansion: powers, cosmetics, rewards a
 const initAt=html.lastIndexOf("buildLevels();");
 if(initAt<0)throw new Error("Game initialization hook missing");
 html=html.slice(0,initAt)+featureLayer+"\n"+html.slice(initAt);
+const bootAt=html.lastIndexOf("buildLevels();");
+if(bootAt<0)throw new Error("Game initialization hook missing");
+const directLobby=`
+const startMenu=document.getElementById("menu");if(startMenu)startMenu.classList.add("hidden");
+const endMenu=document.getElementById("end");if(endMenu)endMenu.classList.add("hidden");
+if(player)scene.remove(player);
+player=makeFighter(0x168dff,true);scene.add(player);
+player.position.set(29.5,18.2,0);player.rotation.y=Math.PI;cameraYaw=Math.PI;
+lobbyMode=true;alive=false;roundOver=false;wasAlive=false;trainingMode=false;
+bots.forEach(b=>{if(b.group)scene.remove(b.group);});bots=[];
+orb.userData.vel=null;orb.position.set(29.5,19.2,-3.5);orbOwner=-1;targetId=-2;ballTimer=9999;playerAttemptUsed=true;
+islandHUD();const skyHud=document.getElementById("islandHud");if(skyHud)skyHud.style.display="block";
+const mainMenuButton=skyHud&&skyHud.querySelector("#lobbyPortal");if(mainMenuButton)mainMenuButton.remove();
+const skyStatus=document.getElementById("islandStatus");if(skyStatus)skyStatus.textContent="WELCOME TO THE SKY LOBBY — EXPLORE THE HUB";
+document.getElementById("statusHud").textContent="SKY LOBBY • FREE ROAM";
+document.getElementById("levelHud").textContent=level;document.getElementById("winsHud").textContent=wins;
+saveCoins();updateIslandBoard();
+(function(){let tap=null;const selectors="#islandHud button, #featureVaultToggle, #featureShop button, #lobbyActionPrompt, #portalPrompt";document.addEventListener("touchstart",e=>{const btn=e.target.closest(selectors);if(!btn||btn.disabled)return;const t=e.changedTouches[0];tap={btn,x:t.clientX,y:t.clientY,id:t.identifier,at:Date.now()};},{passive:true});document.addEventListener("touchend",e=>{if(!tap)return;const t=Array.from(e.changedTouches).find(x=>x.identifier===tap.id);if(!t){tap=null;return;}const ok=Math.hypot(t.clientX-tap.x,t.clientY-tap.y)<24&&Date.now()-tap.at<900&&tap.btn.isConnected&&!tap.btn.disabled;const btn=tap.btn;tap=null;if(ok){e.preventDefault();btn.click();}},{passive:false});})();
+`;
+html=html.slice(0,bootAt+"buildLevels();".length)+directLobby+html.slice(bootAt+"buildLevels();".length);
 html=html.replace("</body>",'<script src="/supabase-config.js"><\/script><script type="module" src="/multiplayer.js"><\/script></body>');document.open();document.write(html);document.close()}catch(e){document.getElementById('loading').textContent='DEFLECT could not load. Please refresh.';console.error(e)}})();
 </script></body></html>
