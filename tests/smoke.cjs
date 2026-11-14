@@ -42,7 +42,7 @@ const { chromium } = require('playwright');
       if (await page.locator('#deflectMp details').evaluate(el => el.open)) throw new Error(`${viewport.name}: multiplayer panel did not close`);
 
       if (!(await page.locator('#menu').isVisible())) throw new Error(`${viewport.name}: start menu is not visible`);
-      const menuHitTest = await page.locator('#startBtn').evaluate(el => { const r=el.getBoundingClientRect(); const top=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return {menuZ:getComputedStyle(document.querySelector('#menu')).zIndex, topIsMenu:!!top?.closest('#menu')}; });
+      const menuHitTest = await page.locator('#startBtn').evaluate(el => { const r=el.getBoundingClientRect(); const top=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return {menuZ:getComputedStyle(document.querySelector('#menu')).zIndex, topIsMenu:!!top?.closest('#menu'), top:top?{tag:top.tagName,id:top.id,cls:String(top.className),z:getComputedStyle(top).zIndex,pos:getComputedStyle(top).position,pointer:getComputedStyle(top).pointerEvents,rect:(()=>{const q=top.getBoundingClientRect();return{x:q.x,y:q.y,w:q.width,h:q.height}})()}:null, menuAncestors:(()=>{const a=[];let n=document.querySelector('#menu');while(n){const s=getComputedStyle(n),r=n.getBoundingClientRect();a.push({tag:n.tagName,id:n.id,cls:String(n.className),z:s.zIndex,pos:s.position,rect:{x:r.x,y:r.y,w:r.width,h:r.height}});n=n.parentElement;}return a;})()}; });
       if (!menuHitTest.topIsMenu || Number(menuHitTest.menuZ) < 1000) throw new Error(`${viewport.name}: menu input layer is blocked: ${JSON.stringify(menuHitTest)}`);
       await page.locator('#startBtn').click();
       await page.waitForFunction(() => {
