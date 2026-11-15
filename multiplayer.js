@@ -41,7 +41,7 @@ let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="P
 window.__DEFLECT_MP_NAME__=playerName;
 let joinedAt=Date.now();
 $("mpName").value=playerName;
-let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,publicServerId=null,publicHeartbeat=null,isPublicMatch=false;
+let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
 const status=s=>$("mpStatus").textContent=s;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
@@ -192,7 +192,7 @@ function electHost(){
   const list=roomPlayers().slice().sort((a,b)=>((a.joinedAt||0)-(b.joinedAt||0))||String(a.id).localeCompare(String(b.id)));
   isHost=list[0]?.id===selfId;
   $("mpHost").textContent=isHost?"HOST · this device controls the shared ball":"CONNECTED · following room host";
-  bridge()?.setNetworkState(true,isHost,selfId);
+  bridge()?.setNetworkState(true,isHost,selfId,list[0]?.id||selfId);
 }
 function render(){
   const list=roomPlayers();
@@ -208,7 +208,8 @@ function render(){
   const state=bridge()?.getLocalState?.();
   // The room host starts the round once a second player is present. Previously
   // both clients waited for someone else to start, so neither ever launched an orb.
-  if(unique.length>=2&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver)startMatch();
+  const enoughPlayers=isPublicMatch?unique.length>=1:unique.length>=2;
+  if(enoughPlayers&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver)startMatch();
 }
 function applyRemotePlayers(){
   const remote=[...players.entries()].map(([id,state])=>({id,state}));
@@ -250,12 +251,13 @@ function startLoops(){
   },35);
 }
 async function leave(){
-  clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;matchStarted=false;lastAlive=false;
-  const publicId=publicServerId;publicServerId=null;isPublicMatch=false;
+  clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;clearInterval(publicStatePoll);publicStatePoll=null;matchStarted=false;lastAlive=false;
+  const publicId=publicServerId,wasPublic=isPublicMatch;publicServerId=null;isPublicMatch=false;
   if(publicId)await supabase.rpc("deflect_leave_public_server",{p_player_id:selfId});
   const old=channel;channel=null;roomCode=null;players.clear();
-  bridge()?.setNetworkState(false,false,null);
+  bridge()?.setNetworkState(false,false,null,null);
   bridge()?.setRemotePlayers([]);
+  if(wasPublic)bridge()?.setPublicBotCount?.(null);
   $("mpLeave").disabled=true;$("mpRoom").textContent="Not connected to a room";$("mpHost").textContent="";
   $("mpPlayers").innerHTML='<li class="mpMuted">No room joined</li>';
   if(old)await supabase.removeChannel(old);
@@ -276,7 +278,7 @@ async function join(raw,options={}){
       if(!isHost&&payload?.state)bridge()?.applySnapshot(payload.state);
     })
     .on("broadcast",{event:"deflect-request"},({payload})=>{
-      if(isHost&&payload?.position){const ok=bridge()?.tryRemoteDeflect(payload.position);if(ok)status("Remote deflect confirmed");}
+      if(isHost&&payload?.position){const ok=bridge()?.tryRemoteDeflect(payload.position,payload.rotation,payload.id);if(ok)status("Remote deflect confirmed");}
     })
     .on("broadcast",{event:"player-eliminated"},({payload})=>{
       if(!payload?.id)return;
@@ -294,7 +296,11 @@ async function join(raw,options={}){
       $("mpRoom").textContent=isPublicMatch?"PUBLIC SERVER: "+room+" · 16 slots":"ROOM CODE: "+room+" · share with friends";
       $("mpCode").value=room;$("mpLeave").disabled=false;
       status(isPublicMatch?"Matched into public server · connected as "+playerName:"Connected as "+playerName);render();startLoops();
-      if(isPublicMatch){clearInterval(publicHeartbeat);publicHeartbeat=setInterval(async()=>{const hb=await supabase.rpc("deflect_public_server_heartbeat",{p_player_id:selfId});if(hb.error||hb.data===false)status("Public server heartbeat lost. Rejoin public matchmaking.");},12000);}
+      if(isPublicMatch){
+        await refreshPublicState();
+        clearInterval(publicHeartbeat);publicHeartbeat=setInterval(async()=>{const hb=await supabase.rpc("deflect_public_server_heartbeat",{p_player_id:selfId});if(hb.error||hb.data===false)status("Public server heartbeat lost. Rejoin public matchmaking.");},12000);
+        clearInterval(publicStatePoll);publicStatePoll=setInterval(refreshPublicState,3000);
+      }
     }else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT"){
       status("Connection failed. Check internet and try again.");
       if(channel!==next)await supabase.removeChannel(next);
@@ -304,9 +310,10 @@ async function join(raw,options={}){
 }
 window.addEventListener("deflect:host-eliminated",()=>{if(channel&&isHost)send("host-eliminated",{id:selfId});});
 window.addEventListener("deflect:request",event=>{
-  const p=event.detail?.position;
-  if(channel&&Array.isArray(p))send("deflect-request",{id:selfId,position:p});
+  const state=event.detail||{},p=state.position;
+  if(channel&&Array.isArray(p))send("deflect-request",{id:selfId,position:p,rotation:state.rotation});
 });
+window.addEventListener("deflect:remote-eliminated",event=>{const id=event.detail?.id;if(channel&&isHost&&id)send("player-eliminated",{id,by:selfId});});
 $("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(!clean){status("Enter a username first.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;localStorage.setItem("deflectPlayerName",clean);if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});status("Username saved: "+clean);};
 $("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};
 $("mpAnnounce").onclick=()=>{const message=$("mpAdminMessage").value.trim();if(message)issueAdminAction(null,"announce",{message});};
@@ -320,6 +327,15 @@ $("mpLogout").onclick=async()=>{await supabase.auth.signOut();await refreshAuth(
 supabase.auth.getSession().then(({data})=>refreshAuth(data.session));
 supabase.auth.onAuthStateChange((_event,session)=>{Promise.resolve().then(()=>refreshAuth(session));});
 if(!adminPoll)adminPoll=setInterval(pollAdminActions,3500);
+async function refreshPublicState(){
+  if(!isPublicMatch)return;
+  const result=await supabase.rpc("deflect_public_server_state",{p_player_id:selfId});
+  if(result.error){status("Public server status is temporarily unavailable.");return;}
+  const state=Array.isArray(result.data)?result.data[0]:result.data;
+  if(!state?.active){status("Public server membership expired. Rejoin public matchmaking.");return;}
+  bridge()?.setPublicBotCount?.(state.bot_count);
+  $("mpRoom").textContent="PUBLIC SERVER: "+roomCode+" · "+state.real_players+"/16 PLAYERS · "+state.bot_count+" BOTS";
+}
 async function joinPublic(){
   await leave();status("Finding an available public server…");
   const result=await supabase.rpc("deflect_join_public_server",{p_player_id:selfId,p_player_name:playerName});
@@ -327,6 +343,7 @@ async function joinPublic(){
   const server=Array.isArray(result.data)?result.data[0]:result.data;
   if(!server?.server_code||!server?.server_id){status("Matchmaking returned an invalid server. Try again.");return;}
   publicServerId=server.server_id;isPublicMatch=true;
+  bridge()?.setPublicBotCount?.(server.bot_count);
   await join(server.server_code,{preserveMembership:true});
 }
 $("mpPublic").onclick=joinPublic;
