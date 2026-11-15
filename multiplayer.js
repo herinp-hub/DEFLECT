@@ -218,10 +218,13 @@ function startMatch(){
   const state=bridge()?.getLocalState?.();
   if(state?.alive||matchStarted||!state?.lobbyMode||state?.roundOver)return;
   matchStarted=true;
-  const started=bridge()?.startOnlineRound?.();
-  if(!started){
+  const game=bridge();
+  if(typeof game?.startOnlineRound==="function"){
+    if(!game.startOnlineRound()){matchStarted=false;return;}
+  }else{
     const button=document.getElementById("startBtn");
-    if(button)button.click();
+    if(!button){matchStarted=false;return;}
+    button.click();
   }
   if(bridge()?.getLocalState?.()?.alive)status("Online round starting…");
   else matchStarted=false;
