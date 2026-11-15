@@ -83,6 +83,9 @@ assert.ok(!adminSql.includes('\n$;'), 'Admin SQL functions must use valid dollar
 assert.ok((adminSql.match(/\$\$;/g)||[]).length >= 3, 'Admin SQL functions must have matching dollar-quote terminators');
 assert.ok(loader.includes('deflect:host-eliminated'), 'Host elimination must notify the multiplayer client');
 const multiplayerClient = fs.readFileSync(path.join(root, 'multiplayer.js'), 'utf8');
+assert.ok(loader.includes('startOnlineRound:'), 'Multiplayer must be able to start a round directly from the Sky Lobby');
+assert.ok(multiplayerClient.includes('unique.length>=2&&isHost&&!matchStarted'), 'Room host must start the round when a second player joins');
+assert.ok(multiplayerClient.includes('startOnlineRound?.()'), 'Multiplayer start must use the direct lobby-to-round bridge');
 assert.ok(multiplayerClient.includes('send("host-eliminated"'), 'Host elimination must be broadcast to the room');
 assert.ok(multiplayerClient.includes('event:"host-eliminated"'), 'Room clients must handle host elimination');
 assert.ok(multiplayerClient.includes('runAdminCommand'), 'Admin command console must be wired');
