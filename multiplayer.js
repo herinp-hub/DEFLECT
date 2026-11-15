@@ -25,7 +25,7 @@ document.head.appendChild(style);
 root.id="deflectMp";
 root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div class="mpBody">
 <div class="mpMuted">Choose your callsign, then create a room and share its six-character code.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE NAME</button></div><div class="mpRow"><input id="mpEmail" type="email" placeholder="ADMIN EMAIL (OPTIONAL)"><button id="mpLogin">ADMIN SIGN IN</button></div><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div><div id="mpEventTools" style="display:none;margin-top:8px"><input id="mpAdminMessage" maxlength="140" placeholder="ANNOUNCEMENT"><button id="mpAnnounce">SEND ANNOUNCEMENT</button><select id="mpAdminEvent"><option value="giant_orb">GIANT ORB</option><option value="double_rewards">DOUBLE COINS</option><option value="orb_rush">ORB RUSH</option><option value="low_gravity">LOW GRAVITY</option><option value="rainbow_arena">RAINBOW ARENA</option><option value="meteor_shower">METEOR SHOWER</option></select><button id="mpStartEvent">START 60-SECOND EVENT</button></div><div style="margin-top:8px"><button id="mpAuditRefresh">REFRESH AUDIT LOG</button><div id="mpAdminAudit" class="mpMuted"></div></div><div id="mpBanTools" style="display:none;margin-top:8px"><button id="mpBansRefresh">REFRESH BAN LIST</button><div id="mpAdminBans" class="mpMuted"></div></div><div style="margin-top:9px;padding-top:8px;border-top:1px solid #78eaff44"><b style="color:#8feaff">ADMIN COMMANDS</b><input id="mpAdminCommand" maxlength="220" autocomplete="off" placeholder="/help · /kick Player · /announce Hello"><button id="mpCommandRun">RUN COMMAND</button><div class="mpMuted">Try /help for the full command list. Commands are checked by Supabase permissions.</div></div></section>
-<div class="mpRow"><button id="mpCreate">CREATE ROOM</button><button id="mpLeave" disabled>LEAVE</button></div>
+<div class="mpRow"><button id="mpPublic">PLAY PUBLIC · AUTO MATCHMAKE</button></div><div class="mpRow"><button id="mpCreate">CREATE PRIVATE ROOM</button><button id="mpLeave" disabled>LEAVE</button></div>
 <div class="mpRow"><input id="mpCode" maxlength="6" placeholder="ROOM CODE" autocomplete="off"><button id="mpJoin">JOIN</button></div>
 <div id="mpRoom" class="mpMuted">Not connected to a room</div><div id="mpHost"></div>
 <b>PLAYERS IN ROOM</b><ul id="mpPlayers"><li class="mpMuted">No room joined</li></ul>
@@ -41,7 +41,7 @@ let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="P
 window.__DEFLECT_MP_NAME__=playerName;
 let joinedAt=Date.now();
 $("mpName").value=playerName;
-let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0;
+let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,publicServerId=null,publicHeartbeat=null,isPublicMatch=false;
 const status=s=>$("mpStatus").textContent=s;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
@@ -250,7 +250,9 @@ function startLoops(){
   },35);
 }
 async function leave(){
-  clearInterval(loops);loops=null;matchStarted=false;lastAlive=false;
+  clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;matchStarted=false;lastAlive=false;
+  const publicId=publicServerId;publicServerId=null;isPublicMatch=false;
+  if(publicId)await supabase.rpc("deflect_leave_public_server",{p_player_id:selfId});
   const old=channel;channel=null;roomCode=null;players.clear();
   bridge()?.setNetworkState(false,false,null);
   bridge()?.setRemotePlayers([]);
@@ -258,10 +260,10 @@ async function leave(){
   $("mpPlayers").innerHTML='<li class="mpMuted">No room joined</li>';
   if(old)await supabase.removeChannel(old);
 }
-async function join(raw){
+async function join(raw,options={}){
   const room=raw.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
   if(room.length!==6){status("Enter a 6-character room code.");return}
-  await leave();roomCode=room;status("Connecting to "+room+"…");
+  if(!options.preserveMembership)await leave();roomCode=room;status((isPublicMatch?"Joining public server ":"Connecting to ")+room+"…");
   const next=supabase.channel("deflect-room-"+room,{config:{presence:{key:selfId},broadcast:{self:false}}});
   next.on("presence",{event:"sync"},()=>{render();applyRemotePlayers()})
     .on("presence",{event:"join"},render).on("presence",{event:"leave"},()=>{render();applyRemotePlayers()})
@@ -289,9 +291,10 @@ async function join(raw){
       channel=next;
       joinedAt=Date.now();
       await next.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});
-      $("mpRoom").textContent="ROOM CODE: "+room+" · share with friends";
+      $("mpRoom").textContent=isPublicMatch?"PUBLIC SERVER: "+room+" · 16 slots":"ROOM CODE: "+room+" · share with friends";
       $("mpCode").value=room;$("mpLeave").disabled=false;
-      status("Connected as "+playerName);render();startLoops();
+      status(isPublicMatch?"Matched into public server · connected as "+playerName:"Connected as "+playerName);render();startLoops();
+      if(isPublicMatch){clearInterval(publicHeartbeat);publicHeartbeat=setInterval(async()=>{const hb=await supabase.rpc("deflect_public_server_heartbeat",{p_player_id:selfId});if(hb.error||hb.data===false)status("Public server heartbeat lost. Rejoin public matchmaking.");},12000);}
     }else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT"){
       status("Connection failed. Check internet and try again.");
       if(channel!==next)await supabase.removeChannel(next);
@@ -316,6 +319,16 @@ $("mpLogout").onclick=async()=>{await supabase.auth.signOut();await refreshAuth(
 supabase.auth.getSession().then(({data})=>refreshAuth(data.session));
 supabase.auth.onAuthStateChange((_event,session)=>{Promise.resolve().then(()=>refreshAuth(session));});
 if(!adminPoll)adminPoll=setInterval(pollAdminActions,3500);
+async function joinPublic(){
+  await leave();status("Finding an available public server…");
+  const result=await supabase.rpc("deflect_join_public_server",{p_player_id:selfId,p_player_name:playerName});
+  if(result.error){status("Public matchmaking failed: "+result.error.message);return;}
+  const server=Array.isArray(result.data)?result.data[0]:result.data;
+  if(!server?.server_code||!server?.server_id){status("Matchmaking returned an invalid server. Try again.");return;}
+  publicServerId=server.server_id;isPublicMatch=true;
+  await join(server.server_code,{preserveMembership:true});
+}
+$("mpPublic").onclick=joinPublic;
 $("mpCreate").onclick=()=>join(makeCode());
 $("mpJoin").onclick=()=>join($("mpCode").value);
 $("mpLeave").onclick=()=>{leave();status("You left the room.")};
