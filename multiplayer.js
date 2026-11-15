@@ -41,7 +41,7 @@ let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="P
 window.__DEFLECT_MP_NAME__=playerName;
 let joinedAt=Date.now();
 $("mpName").value=playerName;
-let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0;
+let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0;
 const status=s=>$("mpStatus").textContent=s;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
@@ -205,6 +205,10 @@ function render(){
   electHost();
   applyRemotePlayers();
   renderAdminConsole();
+  const state=bridge()?.getLocalState?.();
+  // The room host starts the round once a second player is present. Previously
+  // both clients waited for someone else to start, so neither ever launched an orb.
+  if(unique.length>=2&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver)startMatch();
 }
 function applyRemotePlayers(){
   const remote=[...players.entries()].map(([id,state])=>({id,state}));
@@ -212,9 +216,15 @@ function applyRemotePlayers(){
 }
 function startMatch(){
   const state=bridge()?.getLocalState?.();
-  if(state?.alive)return;
-  const button=document.getElementById("startBtn");
-  if(button){button.click();status("Online round starting…")}
+  if(state?.alive||matchStarted||!state?.lobbyMode||state?.roundOver)return;
+  matchStarted=true;
+  const started=bridge()?.startOnlineRound?.();
+  if(!started){
+    const button=document.getElementById("startBtn");
+    if(button)button.click();
+  }
+  if(bridge()?.getLocalState?.()?.alive)status("Online round starting…");
+  else matchStarted=false;
 }
 function startLoops(){
   clearInterval(loops);
@@ -222,7 +232,7 @@ function startLoops(){
     if(!channel)return;
     const now=performance.now(),b=bridge(),state=b?.getLocalState?.();
     if(!state)return;
-    if(state.alive&&!lastAlive)send("match-start",{by:selfId,at:Date.now()});
+    if(state.alive&&!lastAlive){matchStarted=true;send("match-start",{by:selfId,at:Date.now()});}
     lastAlive=!!state.alive;
     if(now-lastStateSent>120){
       lastStateSent=now;
@@ -237,7 +247,7 @@ function startLoops(){
   },35);
 }
 async function leave(){
-  clearInterval(loops);loops=null;
+  clearInterval(loops);loops=null;matchStarted=false;lastAlive=false;
   const old=channel;channel=null;roomCode=null;players.clear();
   bridge()?.setNetworkState(false,false,null);
   bridge()?.setRemotePlayers([]);
