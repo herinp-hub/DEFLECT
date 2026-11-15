@@ -298,6 +298,7 @@ async function join(raw,options={}){
     }else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT"){
       status("Connection failed. Check internet and try again.");
       if(channel!==next)await supabase.removeChannel(next);
+      if(isPublicMatch)await leave();
     }
   });
 }
