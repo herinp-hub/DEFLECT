@@ -34,7 +34,7 @@ player.position.set(29.5,18.2,0);player.rotation.y=Math.PI;cameraYaw=Math.PI;
 lobbyMode=true;alive=false;roundOver=false;wasAlive=false;trainingMode=false;
 bots.forEach(b=>{if(b.group)scene.remove(b.group);});bots=[];
 orb.userData.vel=null;orb.position.set(29.5,19.2,-3.5);orbOwner=-1;targetId=-2;ballTimer=9999;playerAttemptUsed=true;
-islandHUD();const skyHud=document.getElementById("islandHud");if(skyHud)skyHud.style.display="block";
+islandHUD();applyArenaTheme();const skyHud=document.getElementById("islandHud");if(skyHud)skyHud.style.display="block";
 const mainMenuButton=skyHud&&skyHud.querySelector("#lobbyPortal");if(mainMenuButton)mainMenuButton.remove();
 const skyStatus=document.getElementById("islandStatus");if(skyStatus)skyStatus.textContent="WELCOME TO THE SKY LOBBY — EXPLORE THE HUB";
 document.getElementById("statusHud").textContent="SKY LOBBY • FREE ROAM";
