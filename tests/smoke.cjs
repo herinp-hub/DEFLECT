@@ -41,16 +41,21 @@ const { chromium } = require('playwright');
       await page.locator('#deflectMp details').evaluate(el => { el.open = false; });
       if (await page.locator('#deflectMp details').evaluate(el => el.open)) throw new Error(`${viewport.name}: multiplayer panel did not close`);
 
-      if (!(await page.locator('#menu').isVisible())) throw new Error(`${viewport.name}: start menu is not visible`);
-      const menuHitTest = await page.locator('#startBtn').evaluate(el => { const r=el.getBoundingClientRect(); const top=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return {menuZ:getComputedStyle(document.querySelector('#menu')).zIndex, topIsMenu:!!top?.closest('#menu'), top:top?{tag:top.tagName,id:top.id,cls:String(top.className),z:getComputedStyle(top).zIndex,pos:getComputedStyle(top).position,pointer:getComputedStyle(top).pointerEvents,rect:(()=>{const q=top.getBoundingClientRect();return{x:q.x,y:q.y,w:q.width,h:q.height}})()}:null, menuAncestors:(()=>{const a=[];let n=document.querySelector('#menu');while(n){const s=getComputedStyle(n),r=n.getBoundingClientRect();a.push({tag:n.tagName,id:n.id,cls:String(n.className),z:s.zIndex,pos:s.position,rect:{x:r.x,y:r.y,w:r.width,h:r.height}});n=n.parentElement;}return a;})()}; });
-      if (!menuHitTest.topIsMenu || Number(menuHitTest.menuZ) < 1000) throw new Error(`${viewport.name}: menu input layer is blocked: ${JSON.stringify(menuHitTest)}`);
-      await page.locator('#startBtn').click();
+      const lobbyProbe = await page.evaluate(() => ({
+        menuHidden: getComputedStyle(document.querySelector('#menu')).display === 'none',
+        state: window.__DEFLECT_MP_BRIDGE__.getLocalState(),
+        startApi: typeof window.__DEFLECT_MP_BRIDGE__.startOnlineRound === 'function'
+      }));
+      if (!lobbyProbe.menuHidden || !lobbyProbe.state.lobbyMode || lobbyProbe.state.alive || !lobbyProbe.startApi) {
+        throw new Error(`${viewport.name}: direct-to-lobby startup failed: ${JSON.stringify(lobbyProbe)}`);
+      }
+      const roundStarted = await page.evaluate(() => window.__DEFLECT_MP_BRIDGE__.startOnlineRound());
+      if (!roundStarted) throw new Error(`${viewport.name}: arena did not start from the Sky Lobby`);
       await page.waitForFunction(() => {
-        const menu = document.querySelector('#menu');
-        return menu && (getComputedStyle(menu).display === 'none' || getComputedStyle(menu).visibility === 'hidden' || Number(getComputedStyle(menu).opacity) === 0);
-      }, { timeout: 10000 });
-      await page.waitForTimeout(1500);
-      await page.waitForTimeout(500);
+        const state = window.__DEFLECT_MP_BRIDGE__?.getLocalState?.();
+        return state?.alive && !state?.lobbyMode && state?.bots?.length > 0;
+      }, undefined, { timeout: 10000 });
+      await page.waitForTimeout(2000);
       await page.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalNameForTest?.() === 'TestPilot', undefined, { timeout: 5000 });
       const eventProbe = await page.evaluate(() => {const b=window.__DEFLECT_MP_BRIDGE__;return {giant:b.applyAdminEvent('giant_orb'),double:b.applyAdminEvent('double_rewards'),meteor:b.applyAdminEvent('meteor_shower'),invalid:b.applyAdminEvent('not_a_real_event')};});
       if (!eventProbe.giant || !eventProbe.double || !eventProbe.meteor || eventProbe.invalid) throw new Error(`${viewport.name}: admin event validation failed: ${JSON.stringify(eventProbe)}`);
@@ -111,9 +116,8 @@ const { chromium } = require('playwright');
       await peer.goto('http://127.0.0.1:4173/?deflectTest=1', { waitUntil: 'domcontentloaded' });
       await peer.waitForSelector('#deflectMp', { timeout: 20000 });
       await peer.locator('#deflectMp summary').click();
-      // The game creates the local fighter only after the player starts a round.
-      await peer.locator('#startBtn').click();
-      await peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === true, undefined, { timeout: 10000 });
+      // Both peers begin in the Sky Lobby; the room host should start the match
+      // automatically when the second player joins the room.
     }
     await hostPage.locator('#mpName').fill('HostPilot');
     await hostPage.locator('#mpSaveName').click();
@@ -127,6 +131,11 @@ const { chromium } = require('playwright');
     await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), undefined, { timeout: 20000 });
     console.log('TRACE multiplayer: both clients connected');
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 2, undefined, { timeout: 15000 })));
+    await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => {
+      const state=window.__DEFLECT_MP_BRIDGE__?.getLocalState?.();
+      return state?.alive===true&&!state?.lobbyMode&&state?.bots?.length>0;
+    }, undefined, { timeout: 15000 })));
+    console.log('TRACE multiplayer: host auto-started arena for both lobby clients');
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getRemoteCount() > 0, undefined, { timeout: 15000 })));
     const hostIdForNames = await hostPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
     const guestIdForNames = await guestPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
