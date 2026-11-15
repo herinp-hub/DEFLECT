@@ -38,37 +38,21 @@ document.getElementById("levelHud").textContent=level;document.getElementById("w
 saveCoins();updateIslandBoard();
 (function(){let tap=null;const selectors="#islandHud button, #featureVaultToggle, #featureShop button, #lobbyActionPrompt, #portalPrompt";document.addEventListener("touchstart",e=>{const btn=e.target.closest(selectors);if(!btn||btn.disabled)return;const t=e.changedTouches[0];tap={btn,x:t.clientX,y:t.clientY,id:t.identifier,at:Date.now()};},{passive:true});document.addEventListener("touchend",e=>{if(!tap)return;const t=Array.from(e.changedTouches).find(x=>x.identifier===tap.id);if(!t){tap=null;return;}const ok=Math.hypot(t.clientX-tap.x,t.clientY-tap.y)<24&&Date.now()-tap.at<900&&tap.btn.isConnected&&!tap.btn.disabled;const btn=tap.btn;tap=null;if(ok){e.preventDefault();btn.click();}},{passive:false});})();
 `;
-html=html.slice(0,bootAt+"buildLevels();".length)+directLobby+html.slice(bootAt+"buildLevels();".length);
-html=html.replace("</body>",'<script src="/supabase-config.js"><\/script><script type="module" src="/multiplayer.js"><\/script></body>');const mouseControls = `<script>
-(()=> {
-  const canvas = document.querySelector('canvas');
-  if (!canvas || window.__DEFLECT_MOUSE_CONTROLS__) return;
-  window.__DEFLECT_MOUSE_CONTROLS__ = true;
-  // Left click remains a normal game/UI click. Never capture or hide the cursor.
-  canvas.requestPointerLock = () => Promise.resolve();
-  document.addEventListener('pointerlockchange', () => {
-    if (document.pointerLockElement === canvas) document.exitPointerLock();
-  });
-  let rightDragging = false;
-  canvas.addEventListener('contextmenu', e => e.preventDefault());
-  canvas.addEventListener('mousedown', e => {
-    if (e.button !== 2) return;
-    rightDragging = true;
-    e.preventDefault();
-  }, true);
-  window.addEventListener('mouseup', e => {
-    if (e.button === 2) rightDragging = false;
-  }, true);
-  window.addEventListener('blur', () => rightDragging = false);
-  window.addEventListener('mousemove', e => {
-    if (!rightDragging || !(e.buttons & 2)) return;
-    if (typeof cameraYaw === 'number') cameraYaw -= e.movementX * 0.003;
-    if (typeof cameraPitch === 'number') {
-      cameraPitch = Math.max(-1.2, Math.min(1.2, cameraPitch - e.movementY * 0.003));
-    }
-  }, true);
-})();
-<\/script>`;
-html = html.replace("</body>", mouseControls + "</body>");
+const mouseControlsCode = `
+const mouseCanvas=renderer&&renderer.domElement;
+if(mouseCanvas&&!window.__DEFLECT_MOUSE_CONTROLS__){
+  window.__DEFLECT_MOUSE_CONTROLS__=true;
+  mouseCanvas.requestPointerLock=()=>Promise.resolve();
+  document.addEventListener("pointerlockchange",()=>{if(document.pointerLockElement===mouseCanvas)document.exitPointerLock();});
+  let rightDragging=false;
+  mouseCanvas.addEventListener("contextmenu",e=>e.preventDefault());
+  mouseCanvas.addEventListener("mousedown",e=>{if(e.button!==2)return;rightDragging=true;e.preventDefault();},true);
+  window.addEventListener("mouseup",e=>{if(e.button===2)rightDragging=false;},true);
+  window.addEventListener("blur",()=>rightDragging=false);
+  window.addEventListener("mousemove",e=>{if(!rightDragging||!(e.buttons&2))return;cameraYaw-=e.movementX*0.003;cameraPitch=THREE.MathUtils.clamp(cameraPitch-e.movementY*0.003,-1.2,1.2);},true);
+}
+`;
+html=html.slice(0,bootAt+"buildLevels();".length)+directLobby+mouseControlsCode+html.slice(bootAt+"buildLevels();".length);
+html=html.replace("</body>",'<script src="/supabase-config.js"><\/script><script type="module" src="/multiplayer.js"><\/script></body>');
 document.open();document.write(html);document.close()}catch(e){document.getElementById('loading').textContent='DEFLECT could not load. Please refresh.';console.error(e)}})();
 </script></body></html>
