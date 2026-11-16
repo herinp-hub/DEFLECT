@@ -35,7 +35,7 @@ document.body.appendChild(root);
 const $=id=>root.querySelector("#"+id);
 if(!cfg?.url||!cfg?.publishableKey){$("mpStatus").textContent="Supabase setup is missing.";throw new Error("DEFLECT Supabase config is missing");}
 const supabase=createClient(cfg.url,cfg.publishableKey,{realtime:{params:{eventsPerSecond:20}}});
-const selfId=crypto.randomUUID();
+const selfId=sessionStorage.getItem("deflectMpPlayerId")||crypto.randomUUID();sessionStorage.setItem("deflectMpPlayerId",selfId);
 window.__DEFLECT_MP_SELF_ID__=selfId;
 let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="Pilot-"+Math.floor(1000+Math.random()*9000);localStorage.setItem("deflectPlayerName",n)}return n})();
 window.__DEFLECT_MP_NAME__=playerName;
@@ -43,6 +43,7 @@ let joinedAt=Date.now();
 $("mpName").value=playerName;
 let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
 const status=s=>$("mpStatus").textContent=s;
+let lastPresenceAlive=null;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
 
@@ -60,10 +61,10 @@ async function refreshAuth(session){
   }else{
     $("mpAuthStatus").textContent="Not signed in · players can join as guests";
     $("mpLogin").style.display="block";$("mpEmail").style.display="block";$("mpLogout").style.display="none";
-    if(channel)await channel.track({player:{id:selfId,name:playerName,role:"player",userId:null,joinedAt}});
+    if(channel)await channel.track({player:{id:selfId,name:playerName,role:"player",userId:null,joinedAt,alive:!!bridge()?.getLocalState?.()?.alive}});
     if(adminPoll)clearInterval(adminPoll);adminPoll=setInterval(pollAdminActions,3500);
   }
-  window.__DEFLECT_MP_ROLE__=currentRole;if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});renderAdminConsole();
+  window.__DEFLECT_MP_ROLE__=currentRole;if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:!!bridge()?.getLocalState?.()?.alive}});renderAdminConsole();
 }
 function renderAdminConsole(){
   const panel=$("mpAdmin"),list=$("mpAdminMembers");
@@ -189,7 +190,9 @@ async function runAdminCommand(){
 }
 
 function electHost(){
-  const list=roomPlayers().slice().sort((a,b)=>((a.joinedAt||0)-(b.joinedAt||0))||String(a.id).localeCompare(String(b.id)));
+  const members=roomPlayers();
+  const living=matchStarted?members.filter(p=>p.alive!==false):members;
+  const list=(living.length?living:members).slice().sort((a,b)=>((a.joinedAt||0)-(b.joinedAt||0))||String(a.id).localeCompare(String(b.id)));
   isHost=list[0]?.id===selfId;
   $("mpHost").textContent=isHost?"HOST · this device controls the shared ball":"CONNECTED · following room host";
   bridge()?.setNetworkState(true,isHost,selfId,list[0]?.id||selfId);
@@ -236,6 +239,8 @@ function startLoops(){
     if(!channel)return;
     const now=performance.now(),b=bridge(),state=b?.getLocalState?.();
     if(!state)return;
+    const aliveNow=!!state.alive;
+    if(aliveNow!==lastPresenceAlive){lastPresenceAlive=aliveNow;void channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:aliveNow}});}
     if(state.alive&&!lastAlive){matchStarted=true;send("match-start",{by:selfId,at:Date.now()});}
     lastAlive=!!state.alive;
     if(now-lastStateSent>120){
@@ -252,7 +257,7 @@ function startLoops(){
 }
 async function leave(){
   clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;clearInterval(publicStatePoll);publicStatePoll=null;matchStarted=false;lastAlive=false;
-  const publicId=publicServerId,wasPublic=isPublicMatch;publicServerId=null;isPublicMatch=false;
+  const publicId=publicServerId,wasPublic=isPublicMatch;publicServerId=null;isPublicMatch=false;lastPresenceAlive=null;
   if(publicId)await supabase.rpc("deflect_leave_public_server",{p_player_id:selfId});
   const old=channel;channel=null;roomCode=null;players.clear();
   bridge()?.setNetworkState(false,false,null,null);
@@ -287,12 +292,13 @@ async function join(raw,options={}){
       if(payload.id===selfId){bridge()?.applyNetworkElimination();status("ELIMINATED · room host confirmed the hit");}
     })
     .on("broadcast",{event:"match-start"},({payload})=>{if(payload?.by!==selfId)startMatch()})
-    .on("broadcast",{event:"host-eliminated"},({payload})=>{if(payload?.id&&payload.id!==selfId){bridge()?.applyNetworkElimination();status("HOST ELIMINATED · round ended");}});
+    .on("broadcast",{event:"host-eliminated"},({payload})=>{if(payload?.id&&payload.id!==selfId){const old=players.get(payload.id);if(old)players.set(payload.id,{...old,alive:false});applyRemotePlayers();status("HOST ELIMINATED · transferring host control");render();}});
   next.subscribe(async s=>{
     if(s==="SUBSCRIBED"){
       channel=next;
       joinedAt=Date.now();
-      await next.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});
+      lastPresenceAlive=!!bridge()?.getLocalState?.()?.alive;
+      await next.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:lastPresenceAlive}});
       $("mpRoom").textContent=isPublicMatch?"PUBLIC SERVER: "+room+" · 16 slots":"ROOM CODE: "+room+" · share with friends";
       $("mpCode").value=room;$("mpLeave").disabled=false;
       status(isPublicMatch?"Matched into public server · connected as "+playerName:"Connected as "+playerName);render();startLoops();
@@ -314,7 +320,7 @@ window.addEventListener("deflect:request",event=>{
   if(channel&&Array.isArray(p))send("deflect-request",{id:selfId,position:p,rotation:state.rotation});
 });
 window.addEventListener("deflect:remote-eliminated",event=>{const id=event.detail?.id;if(channel&&isHost&&id)send("player-eliminated",{id,by:selfId});});
-$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(!clean){status("Enter a username first.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;localStorage.setItem("deflectPlayerName",clean);if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});status("Username saved: "+clean);};
+$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(!clean){status("Enter a username first.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;localStorage.setItem("deflectPlayerName",clean);if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:!!bridge()?.getLocalState?.()?.alive}});status("Username saved: "+clean);};
 $("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};
 $("mpAnnounce").onclick=()=>{const message=$("mpAdminMessage").value.trim();if(message)issueAdminAction(null,"announce",{message});};
 $("mpStartEvent").onclick=()=>{const event=$("mpAdminEvent").value;issueAdminAction(null,"event",{event,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()});};
