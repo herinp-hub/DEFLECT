@@ -42,6 +42,12 @@ const selfId=sessionStorage.getItem("deflectMpPlayerId")||crypto.randomUUID();se
 // Keep Supabase guest sessions isolated per browser tab. sessionStorage is tab-scoped,
 // so each open tab receives its own auth identity and its own public-lobby membership.
 const supabase=createClient(cfg.url,cfg.publishableKey,{auth:{storage:window.sessionStorage,storageKey:"deflect-auth-"+selfId,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},realtime:{params:{eventsPerSecond:20}}});
+// Keep ordinary player auth isolated per tab, but persist the verified Owner admin session
+// separately so closing the tab does not require another email link.
+const OWNER_SESSION_KEY="deflect-owner-session-v1";
+const isOwnerEmail=session=>!!session&&!session.user?.is_anonymous&&String(session.user?.email||"").toLowerCase()==="herinppatel@gmail.com";
+function persistOwnerSession(session){try{if(isOwnerEmail(session)&&session.access_token&&session.refresh_token)localStorage.setItem(OWNER_SESSION_KEY,JSON.stringify({access_token:session.access_token,refresh_token:session.refresh_token}));}catch(_){}}
+function clearPersistedOwnerSession(){try{localStorage.removeItem(OWNER_SESSION_KEY);}catch(_){}}
 window.__DEFLECT_MP_SELF_ID__=selfId;
 let playerName=(()=>{let n=sessionStorage.getItem("deflectPlayerName");if(!n){n="Pilot-"+Math.floor(1000+Math.random()*9000);sessionStorage.setItem("deflectPlayerName",n)}return n})();
 window.__DEFLECT_MP_NAME__=playerName;
@@ -377,8 +383,7 @@ $("mpAdminCommand").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();runAdmi
 $("mpAuditRefresh").onclick=async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}};
 $("mpLogin").onclick=async()=>{const email=$("mpEmail").value.trim();if(!email){status("Enter your admin email.");return;}const result=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});status(result.error?"Sign-in failed: "+result.error.message:"Magic link sent. Check your email, then return here.");};
 $("mpLogout").onclick=async()=>{await leave();await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
-supabase.auth.getSession().then(({data})=>refreshAuth(data.session));
-supabase.auth.onAuthStateChange((_event,session)=>{Promise.resolve().then(()=>refreshAuth(session));});
+supabase.auth.onAuthStateChange((event,session)=>{\n  if(isOwnerEmail(session))persistOwnerSession(session);\n  else if(event==="SIGNED_OUT"&&isOwnerEmail(authSession))clearPersistedOwnerSession();\n  Promise.resolve().then(()=>refreshAuth(session));\n});\n(async()=>{\n  const current=await supabase.auth.getSession();\n  if(current.data?.session){await refreshAuth(current.data.session);return;}\n  let saved=null;\n  try{saved=JSON.parse(localStorage.getItem(OWNER_SESSION_KEY)||"null");}catch(_){}\n  if(saved?.access_token&&saved?.refresh_token){\n    const restored=await supabase.auth.setSession(saved);\n    if(restored.error){clearPersistedOwnerSession();await refreshAuth(null);}\n  }else await refreshAuth(null);\n})();
 if(!adminPoll)adminPoll=setInterval(pollAdminActions,3500);
 async function refreshPublicState(){
   if(!isPublicMatch)return;
