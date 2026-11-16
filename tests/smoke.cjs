@@ -212,13 +212,13 @@ const { chromium } = require('playwright');
       throw new Error('Multiplayer integration: remote hit validation failed: ' + JSON.stringify(hitProbe));
     }
 
-    // Verify a host elimination is broadcast and applied by the guest, independently of hit detection.
+    // Verify the host's elimination is broadcast to the guest, independently of hit detection.
     if (!(await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.isNetworkHost()))) throw new Error('Multiplayer integration: expected the room creator to be host');
     const guestStillAlive = await guestPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLocalState().alive);
     if (!guestStillAlive) throw new Error('Multiplayer integration: guest was eliminated during the isolated hit test');
     const hostEliminated = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.triggerHostEliminationForTest());
     if (!hostEliminated) throw new Error('Multiplayer integration: host elimination helper was rejected');
-    await guestPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === false, undefined, { timeout: 10000 });
+    await hostPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === false, undefined, { timeout: 10000 });
     await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('HOST ELIMINATED'), undefined, { timeout: 10000 });
     console.log('TRACE multiplayer: host elimination broadcast received');
 
