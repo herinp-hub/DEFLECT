@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
     for (const viewport of viewports) {
       const page = await browser.newPage({ viewport });
       await page.addInitScript(() => localStorage.setItem('deflectCoins','250'));
-      page.on('pageerror', error => failures.push(`${viewport.name}: ${error.message}`));
+      page.on('pageerror', error => failures.push(`${viewport.name}: ${error.stack || error.message}`));
       const response = await page.goto('http://127.0.0.1:4173/?deflectTest=1', { waitUntil: 'domcontentloaded' });
       if (!response || !response.ok()) throw new Error(`${viewport.name}: HTTP page load failed`);
       await page.waitForFunction(() => document.title.includes('DEFLECT'), undefined, { timeout: 15000 });
