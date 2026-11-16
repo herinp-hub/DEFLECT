@@ -34,8 +34,10 @@ root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div c
 document.body.appendChild(root);
 const $=id=>root.querySelector("#"+id);
 if(!cfg?.url||!cfg?.publishableKey){$("mpStatus").textContent="Supabase setup is missing.";throw new Error("DEFLECT Supabase config is missing");}
-const supabase=createClient(cfg.url,cfg.publishableKey,{realtime:{params:{eventsPerSecond:20}}});
 const selfId=sessionStorage.getItem("deflectMpPlayerId")||crypto.randomUUID();sessionStorage.setItem("deflectMpPlayerId",selfId);
+// Keep Supabase guest sessions isolated per browser tab. sessionStorage is tab-scoped,
+// so each open tab receives its own auth identity and its own public-lobby membership.
+const supabase=createClient(cfg.url,cfg.publishableKey,{auth:{storage:window.sessionStorage,storageKey:"deflect-auth-"+selfId,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},realtime:{params:{eventsPerSecond:20}}});
 window.__DEFLECT_MP_SELF_ID__=selfId;
 let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="Pilot-"+Math.floor(1000+Math.random()*9000);localStorage.setItem("deflectPlayerName",n)}return n})();
 window.__DEFLECT_MP_NAME__=playerName;
