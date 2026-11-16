@@ -25,8 +25,8 @@ document.head.appendChild(style);
 root.id="deflectMp";
 root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div class="mpBody">
 <div class="mpMuted">Choose a username for this tab. It appears above your player in the lobby.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE USERNAME</button></div><div class="mpRow"><input id="mpEmail" type="email" placeholder="ADMIN EMAIL (OPTIONAL)"><button id="mpLogin">ADMIN SIGN IN</button></div><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div><div id="mpEventTools" style="display:none;margin-top:8px"><input id="mpAdminMessage" maxlength="140" placeholder="ANNOUNCEMENT"><button id="mpAnnounce">SEND ANNOUNCEMENT</button><select id="mpAdminEvent"><option value="giant_orb">GIANT ORB</option><option value="double_rewards">DOUBLE COINS</option><option value="orb_rush">ORB RUSH</option><option value="low_gravity">LOW GRAVITY</option><option value="rainbow_arena">RAINBOW ARENA</option><option value="meteor_shower">METEOR SHOWER</option></select><button id="mpStartEvent">START 60-SECOND EVENT</button></div><div style="margin-top:8px"><button id="mpAuditRefresh">REFRESH AUDIT LOG</button><div id="mpAdminAudit" class="mpMuted"></div></div><div id="mpBanTools" style="display:none;margin-top:8px"><button id="mpBansRefresh">REFRESH BAN LIST</button><div id="mpAdminBans" class="mpMuted"></div></div><div style="margin-top:9px;padding-top:8px;border-top:1px solid #78eaff44"><b style="color:#8feaff">ADMIN COMMANDS</b><input id="mpAdminCommand" maxlength="220" autocomplete="off" placeholder="/help · /kick Player · /announce Hello"><button id="mpCommandRun">RUN COMMAND</button><div class="mpMuted">Try /help for the full command list. Commands are checked by Supabase permissions.</div></div></section>
-<div class="mpRow"><button id="mpPublic">PLAY PUBLIC · AUTO MATCHMAKE</button></div><div class="mpRow"><button id="mpCreate">CREATE PRIVATE ROOM</button><button id="mpLeave" disabled>LEAVE</button></div>
-<div class="mpRow"><input id="mpCode" maxlength="6" placeholder="ROOM CODE" autocomplete="off"><button id="mpJoin">JOIN</button></div>
+<div class="mpRow"><button id="mpCreate">CREATE PRIVATE SERVER</button><button id="mpLeave" disabled>LEAVE</button></div>
+<div class="mpRow"><input id="mpCode" maxlength="6" placeholder="PRIVATE SERVER CODE" autocomplete="off"><button id="mpJoin">JOIN PRIVATE</button></div>
 <div id="mpRoom" class="mpMuted">Not connected to a room</div><div id="mpHost"></div>
 <b>PLAYERS IN ROOM</b><ul id="mpPlayers"><li class="mpMuted">No room joined</li></ul>
 <div class="mpMuted">Start a round to sync player movement and the arena ball.</div>
@@ -274,7 +274,7 @@ async function leave(){
 async function join(raw,options={}){
   const room=raw.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
   if(room.length!==6){status("Enter a 6-character room code.");return}
-  if(!options.preserveMembership)await leave();roomCode=room;status((isPublicMatch?"Joining public server ":"Connecting to ")+room+"…");
+  if(!options.preserveMembership)await leave();roomCode=room;status(isPublicMatch?"Joining a public server…":"Connecting to private server…");
   const next=supabase.channel("deflect-room-"+room,{config:{presence:{key:selfId},broadcast:{self:false}}});
   next.on("presence",{event:"sync"},()=>{render();applyRemotePlayers()})
     .on("presence",{event:"join"},render).on("presence",{event:"leave"},()=>{render();applyRemotePlayers()})
@@ -313,8 +313,8 @@ async function join(raw,options={}){
       }
       lastPresenceAlive=!!bridge()?.getLocalState?.()?.alive;
       await next.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:lastPresenceAlive}});
-      $("mpRoom").textContent=isPublicMatch?"PUBLIC SERVER: "+room+" · 16 slots":"ROOM CODE: "+room+" · share with friends";
-      $("mpCode").value=room;$("mpLeave").disabled=false;
+      $("mpRoom").textContent=isPublicMatch?"PUBLIC SERVER · AUTOMATIC MATCHMAKING":"PRIVATE SERVER CODE: "+room+" · share with friends";
+      $("mpCode").value=isPublicMatch?"":room;$("mpLeave").disabled=false;
       status(isPublicMatch?"Matched into public server · connected as "+playerName:"Connected as "+playerName);render();startLoops();
       if(isPublicMatch){
         await refreshPublicState();
@@ -354,7 +354,7 @@ async function refreshPublicState(){
   const state=Array.isArray(result.data)?result.data[0]:result.data;
   if(!state?.active){status("Public server membership expired. Rejoin public matchmaking.");return;}
   bridge()?.setPublicBotCount?.(state.bot_count);
-  $("mpRoom").textContent="PUBLIC SERVER: "+roomCode+" · "+state.real_players+"/16 PLAYERS · "+state.bot_count+" BOTS";
+  $("mpRoom").textContent="PUBLIC SERVER · "+state.real_players+"/16 PLAYERS · "+state.bot_count+" BOTS";
 }
 async function ensurePublicIdentity(){
   let session=authSession;
@@ -380,7 +380,6 @@ async function joinPublic(){
   bridge()?.setPublicBotCount?.(server.bot_count);
   await join(server.server_code,{preserveMembership:true});
 }
-$("mpPublic").onclick=joinPublic;
 $("mpCreate").onclick=()=>join(makeCode());
 $("mpJoin").onclick=()=>join($("mpCode").value);
 $("mpLeave").onclick=()=>{leave();status("You left the room.")};
