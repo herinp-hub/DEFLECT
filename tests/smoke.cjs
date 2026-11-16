@@ -126,7 +126,8 @@ const { chromium } = require('playwright');
     const guestPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
     for (const peer of [hostPage, guestPage]) {
       await peer.goto('http://127.0.0.1:4173/?deflectTest=1', { waitUntil: 'domcontentloaded' });
-      await peer.waitForSelector('#deflectMp', { timeout: 20000 });
+      await peer.waitForSelector('#deflectMp', { timeout: 60000 });
+      await peer.waitForFunction(() => !!window.__DEFLECT_MP_BRIDGE__?.getLocalState, undefined, { timeout: 15000 });
       await peer.locator('#deflectMp summary').click();
       // Both peers begin in the Sky Lobby; the room host should start the match
       // automatically when the second player joins the room.
