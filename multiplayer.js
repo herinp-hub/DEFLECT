@@ -383,7 +383,21 @@ $("mpAdminCommand").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();runAdmi
 $("mpAuditRefresh").onclick=async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}};
 $("mpLogin").onclick=async()=>{const email=$("mpEmail").value.trim();if(!email){status("Enter your admin email.");return;}const result=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});status(result.error?"Sign-in failed: "+result.error.message:"Magic link sent. Check your email, then return here.");};
 $("mpLogout").onclick=async()=>{await leave();await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
-supabase.auth.onAuthStateChange((event,session)=>{\n  if(isOwnerEmail(session))persistOwnerSession(session);\n  else if(event==="SIGNED_OUT"&&isOwnerEmail(authSession))clearPersistedOwnerSession();\n  Promise.resolve().then(()=>refreshAuth(session));\n});\n(async()=>{\n  const current=await supabase.auth.getSession();\n  if(current.data?.session){await refreshAuth(current.data.session);return;}\n  let saved=null;\n  try{saved=JSON.parse(localStorage.getItem(OWNER_SESSION_KEY)||"null");}catch(_){}\n  if(saved?.access_token&&saved?.refresh_token){\n    const restored=await supabase.auth.setSession(saved);\n    if(restored.error){clearPersistedOwnerSession();await refreshAuth(null);}\n  }else await refreshAuth(null);\n})();
+supabase.auth.onAuthStateChange((event,session)=>{
+  if(isOwnerEmail(session))persistOwnerSession(session);
+  else if(event==="SIGNED_OUT"&&isOwnerEmail(authSession))clearPersistedOwnerSession();
+  Promise.resolve().then(()=>refreshAuth(session));
+});
+(async()=>{
+  const current=await supabase.auth.getSession();
+  if(current.data?.session){await refreshAuth(current.data.session);return;}
+  let saved=null;
+  try{saved=JSON.parse(localStorage.getItem(OWNER_SESSION_KEY)||"null");}catch(_){}
+  if(saved?.access_token&&saved?.refresh_token){
+    const restored=await supabase.auth.setSession(saved);
+    if(restored.error){clearPersistedOwnerSession();await refreshAuth(null);}
+  }else await refreshAuth(null);
+})();
 if(!adminPoll)adminPoll=setInterval(pollAdminActions,3500);
 async function refreshPublicState(){
   if(!isPublicMatch)return;
