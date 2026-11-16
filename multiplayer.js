@@ -299,6 +299,16 @@ async function join(raw,options={}){
     if(s==="SUBSCRIBED"){
       channel=next;
       joinedAt=Date.now();
+      // Give each public-lobby player a stable spot around the shared spawn point.
+      // Without this, every real player occupies the exact same coordinates.
+      const localState=bridge()?.getLocalState?.();
+      if(isPublicMatch&&localState?.lobbyMode&&!localState?.alive){
+        let hash=0;for(let i=0;i<selfId.length;i++)hash=(hash*31+selfId.charCodeAt(i))>>>0;
+        const angle=(hash/4294967296)*Math.PI*2;
+        const radius=3.6;
+        const p=localState.position||[29.5,18.2,0];
+        bridge()?.setLocalPosition?.([p[0]+Math.cos(angle)*radius,p[1],p[2]+Math.sin(angle)*radius]);
+      }
       lastPresenceAlive=!!bridge()?.getLocalState?.()?.alive;
       await next.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:lastPresenceAlive}});
       $("mpRoom").textContent=isPublicMatch?"PUBLIC SERVER: "+room+" · 16 slots":"ROOM CODE: "+room+" · share with friends";
