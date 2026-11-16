@@ -62,6 +62,8 @@ async function refreshAuth(session){
       const claim=await supabase.rpc("deflect_claim_owner");
       if(claim.error)status("Owner setup: verify the email link, then reload DEFLECT.");
     }
+    const profileResult=await supabase.rpc("deflect_set_my_username",{p_username:playerName});
+    if(profileResult.error&&profileResult.error.message.includes("already taken"))status("Your username is already in use. Choose a different username.");
     const roleResult=await supabase.rpc("deflect_my_role");
     if(!roleResult.error)currentRole=roleResult.data||"player";
     const banResult=await supabase.from("deflect_bans").select("user_id").eq("user_id",authSession.user.id).maybeSingle();
