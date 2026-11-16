@@ -13,7 +13,19 @@ const { chromium } = require('playwright');
       const response = await page.goto('http://127.0.0.1:4173/?deflectTest=1', { waitUntil: 'domcontentloaded' });
       if (!response || !response.ok()) throw new Error(`${viewport.name}: HTTP page load failed`);
       await page.waitForFunction(() => document.title.includes('DEFLECT'), undefined, { timeout: 15000 });
-      await page.waitForSelector('canvas', { timeout: 15000 });
+      try {
+        await page.waitForSelector('canvas', { timeout: 15000 });
+      } catch (error) {
+        const diagnostics = await page.evaluate(() => ({
+          title: document.title,
+          loading: document.querySelector('#loading')?.textContent || null,
+          bodyText: document.body.innerText.slice(0, 1200),
+          canvasCount: document.querySelectorAll('canvas').length,
+          scripts: [...document.scripts].map(s => ({src:s.src,type:s.type,loaded:!!s.dataset.loaded})),
+          chunks: performance.getEntriesByType('resource').filter(x => x.name.includes('/game/chunks/')).map(x => ({url:x.name.split('/').pop(),duration:Math.round(x.duration)}))
+        }));
+        throw new Error(`${viewport.name}: canvas startup failed; diagnostics=${JSON.stringify(diagnostics)}; pageErrors=${failures.join(' | ')}; cause=${error.message}`);
+      }
       await page.waitForSelector('#deflectMp', { timeout: 20000 });
       await page.waitForFunction(() => !!window.__DEFLECT_MP_BRIDGE__?.getLocalState, undefined, { timeout: 10000 });
       const multiplayerProbe = await page.evaluate(() => {
