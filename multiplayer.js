@@ -41,20 +41,22 @@ let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="P
 window.__DEFLECT_MP_NAME__=playerName;
 let joinedAt=Date.now();
 $("mpName").value=playerName;
-let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
+let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,publicPlayerId=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
 const status=s=>$("mpStatus").textContent=s;
 let lastPresenceAlive=null;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
 
 async function refreshAuth(session){
-  authSession=session||null;currentRole="player";
+  const nextPublicPlayerId=session?.user?.id||null;
+  if(publicServerId&&publicPlayerId&&nextPublicPlayerId!==publicPlayerId)await leave();
+  authSession=session||null;publicPlayerId=nextPublicPlayerId;currentRole="player";
   if(authSession){
     const roleResult=await supabase.rpc("deflect_my_role");
     if(!roleResult.error)currentRole=roleResult.data||"player";
     const banResult=await supabase.from("deflect_bans").select("user_id").eq("user_id",authSession.user.id).maybeSingle();
     if(!banResult.error&&banResult.data){status("This account is banned from DEFLECT.");await leave();}
-    $("mpAuthStatus").textContent=authSession.user.email+" · "+currentRole.toUpperCase();
+    $("mpAuthStatus").textContent=(authSession.user.is_anonymous?"GUEST":(authSession.user.email||"SIGNED IN"))+" · "+currentRole.toUpperCase();
     $("mpLogin").style.display="none";$("mpEmail").style.display="none";$("mpLogout").style.display="block";
     if(adminPoll)clearInterval(adminPoll);
     lastAdminCheck=new Date().toISOString();adminPoll=setInterval(pollAdminActions,2500);
@@ -258,7 +260,7 @@ function startLoops(){
 async function leave(){
   clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;clearInterval(publicStatePoll);publicStatePoll=null;matchStarted=false;lastAlive=false;
   const publicId=publicServerId,wasPublic=isPublicMatch;publicServerId=null;isPublicMatch=false;lastPresenceAlive=null;
-  if(publicId)await supabase.rpc("deflect_leave_public_server",{p_player_id:selfId});
+  if(publicId&&publicPlayerId)await supabase.rpc("deflect_leave_public_server",{p_player_id:publicPlayerId});
   const old=channel;channel=null;roomCode=null;players.clear();
   bridge()?.setNetworkState(false,false,null,null);
   bridge()?.setRemotePlayers([]);
@@ -304,7 +306,7 @@ async function join(raw,options={}){
       status(isPublicMatch?"Matched into public server · connected as "+playerName:"Connected as "+playerName);render();startLoops();
       if(isPublicMatch){
         await refreshPublicState();
-        clearInterval(publicHeartbeat);publicHeartbeat=setInterval(async()=>{const hb=await supabase.rpc("deflect_public_server_heartbeat",{p_player_id:selfId});if(hb.error||hb.data===false)status("Public server heartbeat lost. Rejoin public matchmaking.");},12000);
+        clearInterval(publicHeartbeat);publicHeartbeat=setInterval(async()=>{const hb=await supabase.rpc("deflect_public_server_heartbeat",{p_player_id:publicPlayerId});if(hb.error||hb.data===false)status("Public server heartbeat lost. Rejoin public matchmaking.");},12000);
         clearInterval(publicStatePoll);publicStatePoll=setInterval(refreshPublicState,3000);
       }
     }else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT"){
@@ -329,22 +331,36 @@ $("mpCommandRun").onclick=runAdminCommand;
 $("mpAdminCommand").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();runAdminCommand();}};
 $("mpAuditRefresh").onclick=async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}};
 $("mpLogin").onclick=async()=>{const email=$("mpEmail").value.trim();if(!email){status("Enter your admin email.");return;}const result=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});status(result.error?"Sign-in failed: "+result.error.message:"Magic link sent. Check your email, then return here.");};
-$("mpLogout").onclick=async()=>{await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
+$("mpLogout").onclick=async()=>{await leave();await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
 supabase.auth.getSession().then(({data})=>refreshAuth(data.session));
 supabase.auth.onAuthStateChange((_event,session)=>{Promise.resolve().then(()=>refreshAuth(session));});
 if(!adminPoll)adminPoll=setInterval(pollAdminActions,3500);
 async function refreshPublicState(){
   if(!isPublicMatch)return;
-  const result=await supabase.rpc("deflect_public_server_state",{p_player_id:selfId});
+  const result=await supabase.rpc("deflect_public_server_state",{p_player_id:publicPlayerId});
   if(result.error){status("Public server status is temporarily unavailable.");return;}
   const state=Array.isArray(result.data)?result.data[0]:result.data;
   if(!state?.active){status("Public server membership expired. Rejoin public matchmaking.");return;}
   bridge()?.setPublicBotCount?.(state.bot_count);
   $("mpRoom").textContent="PUBLIC SERVER: "+roomCode+" · "+state.real_players+"/16 PLAYERS · "+state.bot_count+" BOTS";
 }
+async function ensurePublicIdentity(){
+  let session=authSession;
+  if(!session?.user?.id){const current=await supabase.auth.getSession();session=current.data?.session||null;}
+  if(!session?.user?.id){
+    const result=await supabase.auth.signInAnonymously();
+    if(result.error){status("Guest matchmaking sign-in failed: "+result.error.message);return null;}
+    session=result.data?.session||null;
+    if(!session?.user?.id){status("Guest sign-in did not return a player identity. Please try again.");return null;}
+    await refreshAuth(session);
+  }
+  authSession=session;publicPlayerId=session.user.id;return publicPlayerId;
+}
 async function joinPublic(){
-  await leave();status("Finding an available public server…");
-  const result=await supabase.rpc("deflect_join_public_server",{p_player_id:selfId,p_player_name:playerName});
+  await leave();
+  const playerId=await ensurePublicIdentity();if(!playerId)return;
+  status("Finding an available public server…");
+  const result=await supabase.rpc("deflect_join_public_server",{p_player_id:playerId,p_player_name:playerName});
   if(result.error){status("Public matchmaking failed: "+result.error.message);return;}
   const server=Array.isArray(result.data)?result.data[0]:result.data;
   if(!server?.server_code||!server?.server_id){status("Matchmaking returned an invalid server. Try again.");return;}
