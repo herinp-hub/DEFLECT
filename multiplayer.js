@@ -112,7 +112,7 @@ async function refreshStaffManager(force=false){
     const row=document.createElement("div");row.className="mpStaffRow";
     const label=document.createElement("span");label.textContent=(item.username||"Unknown")+" · "+String(item.role||"").replaceAll("_"," ").toUpperCase();
     const remove=document.createElement("button");remove.textContent="REMOVE";remove.style.width="auto";
-    remove.onclick=async()=>{const done=await supabase.rpc("deflect_assign_role",{target_user:item.user_id,new_role:"player"});status(done.error?"Could not remove staff: "+done.error.message:"Staff rank removed for "+item.username);await refreshStaffManager();};
+    remove.onclick=()=>withButton(remove,"REMOVING",async()=>{const done=await supabase.rpc("deflect_assign_role",{target_user:item.user_id,new_role:"player"});status(done.error?"Could not remove staff: "+done.error.message:"Staff rank removed for "+item.username);await refreshStaffManager(true);});
     row.append(label,remove);box.appendChild(row);
   }
 }
@@ -137,15 +137,15 @@ function renderAdminConsole(){
         const select=document.createElement("select");select.style.cssText="max-width:105px;background:#102b48;color:white;border:1px solid #78eaff77;border-radius:6px;padding:5px";
         ["player","moderator","admin","co_owner"].forEach(role=>{const option=document.createElement("option");option.value=role;option.textContent=role.toUpperCase();select.appendChild(option);});
         select.value=p.role||"player";const assign=document.createElement("button");assign.textContent="ROLE";assign.style.width="auto";
-        assign.onclick=async()=>{const result=await supabase.rpc("deflect_assign_role",{target_user:p.userId,new_role:select.value});status(result.error?"Role update failed: "+result.error.message:"Role updated for "+p.name);};
+        assign.onclick=()=>withButton(assign,"SAVING",async()=>{const result=await supabase.rpc("deflect_assign_role",{target_user:p.userId,new_role:select.value});status(result.error?"Role update failed: "+result.error.message:"Role updated for "+p.name);});
         row.append(select,assign);
       }
       if(["owner","co_owner","admin","moderator"].includes(currentRole)){
-        const kick=document.createElement("button");kick.textContent="KICK";kick.style.width="auto";kick.onclick=()=>issueAdminAction(p.userId,"kick",{});
+        const kick=document.createElement("button");kick.textContent="KICK";kick.style.width="auto";kick.onclick=()=>withButton(kick,"KICKING",()=>issueAdminAction(p.userId,"kick",{}));
         row.appendChild(kick);
       }
       if(["owner","co_owner","admin"].includes(currentRole)){
-        const ban=document.createElement("button");ban.textContent="BAN";ban.style.width="auto";ban.onclick=()=>issueAdminAction(p.userId,"ban",{reason:"DEFLECT moderation"});row.appendChild(ban);
+        const ban=document.createElement("button");ban.textContent="BAN";ban.style.width="auto";ban.onclick=()=>withButton(ban,"BANNING",()=>issueAdminAction(p.userId,"ban",{reason:"DEFLECT moderation"}));row.appendChild(ban);
       }
     }else if(!p.userId){const guest=document.createElement("small");guest.textContent=" · guest (sign-in required for moderation)";row.appendChild(guest);}
     list.appendChild(row);
@@ -159,7 +159,7 @@ async function refreshAdminBans(){
   for(const item of result.data){
     const row=document.createElement("div");row.style.cssText="display:flex;align-items:center;gap:5px;margin-top:6px;flex-wrap:wrap";
     const label=document.createElement("small");label.textContent=item.user_id.slice(0,8)+"… · "+(item.reason||"No reason");label.style.flex="1";
-    const unban=document.createElement("button");unban.textContent="UNBAN";unban.style.width="auto";unban.onclick=()=>issueAdminAction(item.user_id,"unban",{});
+    const unban=document.createElement("button");unban.textContent="UNBAN";unban.style.width="auto";unban.onclick=()=>withButton(unban,"UNBANNING",()=>issueAdminAction(item.user_id,"unban",{}));
     row.append(label,unban);box.appendChild(row);
   }
 }
@@ -405,7 +405,7 @@ $("mpStartEvent").onclick=()=>withButton($("mpStartEvent"),"STARTING",async()=>{
 $("mpBansRefresh").onclick=()=>withButton($("mpBansRefresh"),"LOADING",refreshAdminBans);
 $("mpStaffRefresh").onclick=()=>withButton($("mpStaffRefresh"),"LOADING",()=>refreshStaffManager(true));
 $("mpStaffAssign").onclick=()=>withButton($("mpStaffAssign"),"SAVING",async()=>{const username=$("mpStaffUsername").value.trim();const role=$("mpStaffRole").value;if(!username){status("Enter the player's username first.");return;}const result=await supabase.rpc("deflect_assign_role_by_username",{p_username:username,new_role:role});status(result.error?"Staff update failed: "+result.error.message:(role==="player"?"Staff rank removed for ":"Rank assigned to ")+username+".");if(!result.error){$("mpStaffUsername").value="";await refreshStaffManager(true);}});
-$("mpCommandRun").onclick=runAdminCommand;
+$("mpCommandRun").onclick=()=>withButton($("mpCommandRun"),"RUNNING",runAdminCommand);
 $("mpAdminCommand").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();runAdminCommand();}};
 $("mpAuditRefresh").onclick=()=>withButton($("mpAuditRefresh"),"LOADING",async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;status("Audit log failed: "+result.error.message);return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}status("Audit log refreshed · "+(result.data||[]).length+" entries.");});
 $("mpLogin").onclick=async()=>{const email=$("mpEmail").value.trim();if(!email){status("Enter your admin email.");return;}const result=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});status(result.error?"Sign-in failed: "+result.error.message:"Magic link sent. Check your email, then return here.");};
