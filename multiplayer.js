@@ -11,8 +11,12 @@ style.textContent=`
 #deflectMp summary::-webkit-details-marker{display:none}
 #deflectMp .mpBody{padding:0 12px 12px}
 #deflectMp input,#deflectMp button{box-sizing:border-box;width:100%;margin:4px 0;padding:9px;border-radius:8px;border:1px solid #78eaff77;background:#102b48;color:#f2fbff;font:700 11px system-ui}
-#deflectMp button{cursor:pointer;background:linear-gradient(110deg,#12547a,#49317e)}
-#deflectMp button:disabled{opacity:.45;cursor:default}
+#deflectMp button{cursor:pointer;background:linear-gradient(110deg,#12547a,#49317e);transition:transform .12s ease,filter .12s ease,box-shadow .12s ease}
+#deflectMp button:active{transform:translateY(2px) scale(.98);filter:brightness(1.3);box-shadow:0 0 0 2px #8feaff55}
+#deflectMp button:disabled{opacity:.55;cursor:wait}
+#deflectMp button.mpBusy{filter:brightness(1.25);box-shadow:0 0 0 1px #8feaff88;cursor:progress}
+#deflectMp button.mpBusy:after{content:'  •••';letter-spacing:2px;animation:mpPulse .8s infinite}
+@keyframes mpPulse{50%{opacity:.25}}
 #deflectMp .mpRow{display:flex;gap:6px}
 #deflectMp .mpRow>*{min-width:0;flex:1}
 #deflectMp .mpMuted{color:#9dbbd1;font-size:10px}
@@ -55,6 +59,14 @@ let joinedAt=Date.now();
 $("mpName").value=playerName;
 let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,publicPlayerId=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,lastStaffRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
 const status=s=>$("mpStatus").textContent=s;
+async function withButton(button,label,task){
+  if(!button||button.disabled)return;
+  const original=button.textContent;
+  button.disabled=true;button.classList.add("mpBusy");button.textContent=label;
+  try{return await task();}
+  catch(error){status("Action failed: "+(error?.message||String(error)));return null;}
+  finally{button.disabled=false;button.classList.remove("mpBusy");button.textContent=original;}
+}
 let lastPresenceAlive=null;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
@@ -152,27 +164,42 @@ async function refreshAdminBans(){
   }
 }
 async function issueAdminAction(targetUser,action,payload){
-  const result=await supabase.rpc("deflect_admin_action",{target_user:targetUser,action_name:action,action_payload:payload});
-  status(result.error?"Action failed: "+result.error.message:action.toUpperCase()+" sent.");
-  if(!result.error&&action==="unban")refreshAdminBans();
+  try{
+    const result=await supabase.rpc("deflect_admin_action",{target_user:targetUser,action_name:action,action_payload:payload});
+    if(result.error){status("Action failed: "+result.error.message);return false;}
+    status(action==="announce"?"Announcement sent to all players.":action==="event"?"Event started: "+String(payload?.event||"").replaceAll("_"," ").toUpperCase():action.toUpperCase()+" sent.");
+    if(action==="unban")await refreshAdminBans();
+    return true;
+  }catch(error){status("Action failed: "+(error?.message||String(error)));return false;}
 }
+const seenAdminActionIds=new Set();
+let lastAdminPollError="";
 async function pollAdminActions(){
   if(!authSession&&!channel)return;
   if(authSession&&Date.now()-lastRoleRefresh>12000){lastRoleRefresh=Date.now();const roleResult=await supabase.rpc("deflect_my_role");if(!roleResult.error&&roleResult.data!==currentRole){currentRole=roleResult.data||"player";window.__DEFLECT_MP_ROLE__=currentRole;if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession.user.id,joinedAt}});renderAdminConsole();}}
-  const since=lastAdminCheck;lastAdminCheck=new Date().toISOString();
-  const result=await supabase.from("deflect_admin_actions").select("*").gt("created_at",since).order("created_at");
-  if(result.error)return;
-  for(const item of result.data||[]){
+  const overlap=new Date(Math.max(0,Date.parse(lastAdminCheck)-5000)).toISOString();
+  const result=await supabase.from("deflect_admin_actions").select("*").gt("created_at",overlap).order("created_at");
+  if(result.error){if(lastAdminPollError!==result.error.message){lastAdminPollError=result.error.message;status("Admin updates unavailable: "+result.error.message);}return;}
+  lastAdminPollError="";
+  const rows=result.data||[];
+  for(const item of rows){
+    const actionKey=String(item.id||item.created_at+"|"+item.action+"|"+item.target_user);
+    if(seenAdminActionIds.has(actionKey))continue;
+    seenAdminActionIds.add(actionKey);
+    if(seenAdminActionIds.size>500)seenAdminActionIds.clear();
     if(authSession&&item.target_user===authSession.user.id&&(item.action==="kick"||item.action==="ban")){
       await leave();status(item.action==="ban"?"You were banned from DEFLECT.":"An admin removed you from the room.");
     }else if(authSession&&item.target_user===authSession.user.id&&item.action==="role_change"){
       await refreshAuth(authSession);status("Your DEFLECT role was updated.");
     }else if(item.action==="event"){
-      bridge()?.applyAdminEvent?.(item.payload?.event);status(item.payload?.message||"ADMIN EVENT · "+item.action.toUpperCase());
+      const applied=bridge()?.applyAdminEvent?.(item.payload?.event);
+      status(applied===false?"Event received but could not be applied on this client.":item.payload?.message||"ADMIN EVENT · "+item.action.toUpperCase());
     }else if(item.action==="announce"){
-      status(item.payload?.message||"ADMIN ANNOUNCEMENT");
+      const message=String(item.payload?.message||"ADMIN ANNOUNCEMENT");
+      bridge()?.showAnnouncement?.(message);status("ANNOUNCEMENT · "+message);
     }
   }
+  if(rows.length){const newest=rows.reduce((v,item)=>item.created_at>v?item.created_at:v,lastAdminCheck);if(newest>lastAdminCheck)lastAdminCheck=newest;}
 }
 function roomPlayers(){
   if(!channel)return [];
@@ -373,14 +400,14 @@ window.addEventListener("deflect:request",event=>{
 window.addEventListener("deflect:remote-eliminated",event=>{const id=event.detail?.id;if(channel&&isHost&&id)send("player-eliminated",{id,by:selfId});});
 $("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(clean.length<3){status("Username must be at least 3 characters.");return;}if(authSession){const saved=await supabase.rpc("deflect_set_my_username",{p_username:clean});if(saved.error){status("Username not saved: "+saved.error.message);return;}}playerName=clean;window.__DEFLECT_MP_NAME__=clean;sessionStorage.setItem("deflectPlayerName",clean);if(isPublicMatch){status("Updating username…");await joinPublic();}else{if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:!!bridge()?.getLocalState?.()?.alive}});status("Username saved: "+clean);}};
 $("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};
-$("mpAnnounce").onclick=()=>{const message=$("mpAdminMessage").value.trim();if(message)issueAdminAction(null,"announce",{message});};
-$("mpStartEvent").onclick=()=>{const event=$("mpAdminEvent").value;issueAdminAction(null,"event",{event,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()});};
-$("mpBansRefresh").onclick=refreshAdminBans;
-$("mpStaffRefresh").onclick=()=>refreshStaffManager(true);
-$("mpStaffAssign").onclick=async()=>{const username=$("mpStaffUsername").value.trim();const role=$("mpStaffRole").value;if(!username){status("Enter the player's username first.");return;}const result=await supabase.rpc("deflect_assign_role_by_username",{p_username:username,new_role:role});status(result.error?"Staff update failed: "+result.error.message:(role==="player"?"Staff rank removed for ":"Rank assigned to ")+username+".");if(!result.error){$("mpStaffUsername").value="";await refreshStaffManager(true);}};
+$("mpAnnounce").onclick=()=>withButton($("mpAnnounce"),"SENDING",async()=>{const message=$("mpAdminMessage").value.trim();if(!message){status("Type an announcement first.");return;}if(await issueAdminAction(null,"announce",{message}))$("mpAdminMessage").value="";});
+$("mpStartEvent").onclick=()=>withButton($("mpStartEvent"),"STARTING",async()=>{const event=$("mpAdminEvent").value;await issueAdminAction(null,"event",{event,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()});});
+$("mpBansRefresh").onclick=()=>withButton($("mpBansRefresh"),"LOADING",refreshAdminBans);
+$("mpStaffRefresh").onclick=()=>withButton($("mpStaffRefresh"),"LOADING",()=>refreshStaffManager(true));
+$("mpStaffAssign").onclick=()=>withButton($("mpStaffAssign"),"SAVING",async()=>{const username=$("mpStaffUsername").value.trim();const role=$("mpStaffRole").value;if(!username){status("Enter the player's username first.");return;}const result=await supabase.rpc("deflect_assign_role_by_username",{p_username:username,new_role:role});status(result.error?"Staff update failed: "+result.error.message:(role==="player"?"Staff rank removed for ":"Rank assigned to ")+username+".");if(!result.error){$("mpStaffUsername").value="";await refreshStaffManager(true);}});
 $("mpCommandRun").onclick=runAdminCommand;
 $("mpAdminCommand").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();runAdminCommand();}};
-$("mpAuditRefresh").onclick=async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}};
+$("mpAuditRefresh").onclick=()=>withButton($("mpAuditRefresh"),"LOADING",async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;status("Audit log failed: "+result.error.message);return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}status("Audit log refreshed · "+(result.data||[]).length+" entries.");});
 $("mpLogin").onclick=async()=>{const email=$("mpEmail").value.trim();if(!email){status("Enter your admin email.");return;}const result=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});status(result.error?"Sign-in failed: "+result.error.message:"Magic link sent. Check your email, then return here.");};
 $("mpLogout").onclick=async()=>{await leave();await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
 supabase.auth.onAuthStateChange((event,session)=>{
