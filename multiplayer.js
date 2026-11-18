@@ -173,7 +173,7 @@ async function issueAdminAction(targetUser,action,payload){
   }catch(error){status("Action failed: "+(error?.message||String(error)));return false;}
 }
 const seenAdminActionIds=new Set();
-let lastAdminPollError="";
+let lastAdminPollError="",activeEventsBootstrapped=false;
 async function pollAdminActions(){
   if(!authSession&&!channel)return;
   if(authSession&&Date.now()-lastRoleRefresh>12000){lastRoleRefresh=Date.now();const roleResult=await supabase.rpc("deflect_my_role");if(!roleResult.error&&roleResult.data!==currentRole){currentRole=roleResult.data||"player";window.__DEFLECT_MP_ROLE__=currentRole;if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession.user.id,joinedAt}});renderAdminConsole();}}
@@ -181,7 +181,8 @@ async function pollAdminActions(){
   const result=await supabase.from("deflect_admin_actions").select("*").gt("created_at",overlap).order("created_at");
   if(result.error){if(lastAdminPollError!==result.error.message){lastAdminPollError=result.error.message;status("Admin updates unavailable: "+result.error.message);}return;}
   lastAdminPollError="";
-  const rows=result.data||[];
+  let rows=result.data||[];
+  if(!activeEventsBootstrapped){const recentEvents=await supabase.from("deflect_admin_actions").select("*").eq("action","event").gt("created_at",new Date(Date.now()-300000).toISOString()).order("created_at");if(!recentEvents.error){rows=[...rows,...(recentEvents.data||[])];activeEventsBootstrapped=true;}}
   for(const item of rows){
     const actionKey=String(item.id||item.created_at+"|"+item.action+"|"+item.target_user);
     if(seenAdminActionIds.has(actionKey))continue;
