@@ -56,6 +56,18 @@ root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div c
 <div id="mpStatus" role="status" aria-live="polite">Ready</div></div></details><section id="mpChat"><details><summary>💬 SERVER CHAT</summary><div id="mpChatBody"><div id="mpChatMessages" aria-live="polite"><div class="mpMuted">Join a server to chat with players.</div></div><div id="mpChatComposer"><input id="mpChatInput" maxlength="180" placeholder="Message your server…" autocomplete="off"><button id="mpChatSend" disabled>SEND</button></div><div id="mpChatHint">Messages are live in this server only · inappropriate words are filtered</div></div></details></section>`;
 document.body.appendChild(root);
 const $=id=>root.querySelector("#"+id);
+const adminShortcut=document.createElement("button");
+adminShortcut.id="mpAdminShortcut";
+adminShortcut.type="button";
+adminShortcut.textContent="⚙ ADMIN PANEL";
+adminShortcut.style.cssText="display:none;position:fixed;top:14px;right:14px;z-index:130;width:auto;max-width:calc(100vw - 28px);padding:10px 14px;border:1px solid #ffc977aa;border-radius:10px;background:linear-gradient(110deg,#704715,#49317e);color:#fff4d7;font:900 11px system-ui;letter-spacing:.08em;box-shadow:0 8px 24px #0008;cursor:pointer";
+adminShortcut.addEventListener("click",()=>{
+  const account=root.querySelector("#deflectMp > details");
+  if(account)account.open=true;
+  const panel=$("mpAdmin");
+  if(panel){panel.style.display="block";panel.scrollIntoView({behavior:"smooth",block:"nearest"});}
+});
+document.body.appendChild(adminShortcut);
 if(!cfg?.url||!cfg?.publishableKey){$("mpStatus").textContent="Supabase setup is missing.";throw new Error("DEFLECT Supabase config is missing");}
 const selfId=sessionStorage.getItem("deflectMpPlayerId")||crypto.randomUUID();sessionStorage.setItem("deflectMpPlayerId",selfId);
 // Keep Supabase guest sessions isolated per browser tab. sessionStorage is tab-scoped,
@@ -181,6 +193,7 @@ function renderAdminConsole(){
   const panel=$("mpAdmin"),list=$("mpAdminMembers");
   const canAdmin=["owner","co_owner","admin","moderator"].includes(currentRole);
   panel.style.display=canAdmin?"block":"none";
+  adminShortcut.style.display=canAdmin?"block":"none";
   $("mpEventTools").style.display=["owner","co_owner"].includes(currentRole)?"block":"none";
   $("mpStaffTools").style.display=currentRole==="owner"?"block":"none";
   if(currentRole==="owner")void refreshStaffManager();
