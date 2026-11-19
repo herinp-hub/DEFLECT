@@ -26,7 +26,22 @@ style.textContent=`
 #deflectMp .mpStaffRow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 #deflectMp .mpStaffRow span{flex:1;min-width:90px}
 #deflectMp #mpStatus{min-height:16px;color:#8feaff;margin-top:5px}
+
 #deflectMp #mpHost{color:#ffc977;font-size:10px}
+#deflectMp #mpChat{position:fixed;z-index:119;left:14px;bottom:14px;width:min(340px,calc(100vw - 28px));color:#eafaff;font:12px system-ui}
+#deflectMp #mpChat details{border:1px solid #78eaff99;border-radius:13px;background:rgba(4,16,35,.96);box-shadow:0 10px 35px #0009;overflow:hidden}
+#deflectMp #mpChat summary{padding:10px 13px}
+#deflectMp #mpChatBody{padding:0 10px 10px}
+#deflectMp #mpChatMessages{height:170px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:7px;background:#061326aa;border:1px solid #78eaff33;border-radius:8px}
+#deflectMp .mpChatLine{overflow-wrap:anywhere;line-height:1.35}
+#deflectMp .mpChatName{color:#8feaff;font-weight:900}
+#deflectMp .mpChatTime{color:#7896ad;font-size:9px;margin-left:5px}
+#deflectMp #mpChatComposer{display:flex;gap:5px;margin-top:6px}
+#deflectMp #mpChatInput{flex:1;min-width:0;margin:0}
+#deflectMp #mpChatSend{width:76px;margin:0}
+#deflectMp #mpChatHint{font-size:9px;color:#9dbbd1;margin-top:4px}
+@media(max-width:600px){#deflectMp #mpChat{width:min(270px,calc(100vw - 28px))}#deflectMp #mpChatMessages{height:135px}}
+
 @media(max-width:600px){#deflectMp{width:min(190px,calc(100vw - 28px))}#deflectMp summary{font-size:9px;padding:9px 8px}}
 `;
 document.head.appendChild(style);
@@ -38,7 +53,7 @@ root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div c
 <div id="mpRoom" class="mpMuted">Not connected to a room</div><div id="mpHost"></div>
 <b>PLAYERS IN ROOM</b><ul id="mpPlayers"><li class="mpMuted">No room joined</li></ul>
 <div class="mpMuted">Start a round to sync player movement and the arena ball.</div>
-<div id="mpStatus" role="status" aria-live="polite">Ready</div></div></details>`;
+<div id="mpStatus" role="status" aria-live="polite">Ready</div></div></details><section id="mpChat"><details><summary>💬 SERVER CHAT</summary><div id="mpChatBody"><div id="mpChatMessages" aria-live="polite"><div class="mpMuted">Join a server to chat with players.</div></div><div id="mpChatComposer"><input id="mpChatInput" maxlength="180" placeholder="Message your server…" autocomplete="off"><button id="mpChatSend" disabled>SEND</button></div><div id="mpChatHint">Messages are live in this server only · inappropriate words are filtered</div></div></details></section>`;
 document.body.appendChild(root);
 const $=id=>root.querySelector("#"+id);
 if(!cfg?.url||!cfg?.publishableKey){$("mpStatus").textContent="Supabase setup is missing.";throw new Error("DEFLECT Supabase config is missing");}
@@ -70,7 +85,51 @@ async function withButton(button,label,task){
 }
 let lastPresenceAlive=null;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
+
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
+const CHAT_BLOCKED_TERMS=["fuck","shit","bitch","asshole","bastard","dick","piss","cunt","motherfucker","fucker","fag","faggot","nigger","nigga","retard","whore","slut"];
+let lastChatSentAt=0,chatHistory=[];
+function censorChatMessage(value){
+  const raw=String(value||"").slice(0,180);
+  return raw.split(/(\\s+)/).map(part=>{
+    if(!part.trim())return part;
+    const normalized=part.toLowerCase().replace(/[013457@]/g,c=>({"0":"o","1":"i","3":"e","4":"a","5":"s","7":"t","@":"a"}[c])).replace(/[^a-z]/g,"");
+    if(!normalized)return part;
+    const blocked=CHAT_BLOCKED_TERMS.some(term=>normalized===term||(normalized.startsWith(term)&&normalized.length-term.length<=3)||(normalized.endsWith(term)&&normalized.length-term.length<=3));
+    return blocked?"#".repeat(Math.max(4,part.length)):part;
+  }).join("");
+}
+function renderChatMessage(message){
+  const box=$("mpChatMessages");if(!box)return;
+  const empty=box.querySelector(".mpMuted");if(empty)box.replaceChildren();
+  const line=document.createElement("div");line.className="mpChatLine";
+  const name=document.createElement("span");name.className="mpChatName";name.textContent=String(message.name||"Player").slice(0,20);
+  const time=document.createElement("span");time.className="mpChatTime";time.textContent=new Date(message.at||Date.now()).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+  const body=document.createElement("div");body.textContent=censorChatMessage(message.text);
+  line.append(name,time,body);box.appendChild(line);
+  while(box.children.length>60)box.firstElementChild.remove();
+  box.scrollTop=box.scrollHeight;
+}
+async function sendChatMessage(){
+  const input=$("mpChatInput"),button=$("mpChatSend");
+  if(!channel||!roomCode){status("Join a server before chatting.");return;}
+  const now=Date.now();if(now-lastChatSentAt<1000){status("Slow down a little before sending another message.");return;}
+  const text=censorChatMessage(input.value.trim()).slice(0,180);if(!text.replace(/#/g,"").trim()){status("Type a message first.");return;}
+  lastChatSentAt=now;button.disabled=true;
+  const payload={id:selfId,name:playerName,role:currentRole,text,at:now};
+  renderChatMessage(payload);
+  const result=await send("chat-message",payload);
+  if(result&&result!=="ok"){status("Chat message could not be sent. Try again.");}
+  input.value="";button.disabled=!channel;
+}
+$("mpChatSend").onclick=()=>withButton($("mpChatSend"),"SENDING",sendChatMessage);
+$("mpChatInput").onkeydown=e=>{e.stopPropagation();if(e.key==="Enter"){e.preventDefault();sendChatMessage();}};
+function setChatConnected(connected){
+  $("mpChatSend").disabled=!connected;
+  $("mpChatInput").disabled=!connected;
+  if(!connected){$("mpChatMessages").replaceChildren();const hint=document.createElement("div");hint.className="mpMuted";hint.textContent="Join a server to chat with players."; $("mpChatMessages").appendChild(hint);}
+}
+
 
 async function refreshAuth(session){
   const nextPublicPlayerId=session?.user?.id||null;
@@ -333,7 +392,7 @@ async function leave(){
   bridge()?.setNetworkState(false,false,null,null);
   bridge()?.setRemotePlayers([]);
   if(wasPublic)bridge()?.setPublicBotCount?.(null);
-  $("mpLeave").disabled=true;$("mpRoom").textContent="Not connected to a room";$("mpHost").textContent="";
+  $("mpLeave").disabled=true;setChatConnected(false);$("mpRoom").textContent="Not connected to a room";$("mpHost").textContent="";
   $("mpPlayers").innerHTML='<li class="mpMuted">No room joined</li>';
   if(old)await supabase.removeChannel(old);
 }
@@ -342,7 +401,7 @@ async function join(raw,options={}){
   if(room.length!==6){status("Enter a 6-character room code.");return}
   if(!options.preserveMembership)await leave();roomCode=room;status(isPublicMatch?"Joining a public server…":"Connecting to private server…");
   const next=supabase.channel("deflect-room-"+room,{config:{presence:{key:selfId},broadcast:{self:false}}});
-  next.on("presence",{event:"sync"},()=>{render();applyRemotePlayers()})
+  next.on("presence",{event:"sync"},()=>{render();applyRemotePlayers()})\n    .on("broadcast",{event:"chat-message"},({payload})=>{if(!payload?.text||payload.id===selfId)return;renderChatMessage({...payload,text:censorChatMessage(payload.text)});})
     .on("presence",{event:"join"},render).on("presence",{event:"leave"},()=>{render();applyRemotePlayers()})
     .on("broadcast",{event:"player-state"},({payload})=>{
       if(!payload?.id||payload.id===selfId||!payload.state)return;
@@ -381,7 +440,7 @@ async function join(raw,options={}){
       await next.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:lastPresenceAlive}});
       $("mpRoom").textContent=isPublicMatch?"PUBLIC SERVER · AUTOMATIC MATCHMAKING":"PRIVATE SERVER CODE: "+room+" · share with friends";
       $("mpCode").value=isPublicMatch?"":room;$("mpLeave").disabled=false;
-      status(isPublicMatch?"Matched into public server · connected as "+playerName:"Connected as "+playerName);render();startLoops();
+      status(isPublicMatch?"Matched into public server · connected as "+playerName:"Connected as "+playerName);setChatConnected(true);render();startLoops();
       if(isPublicMatch){
         await refreshPublicState();
         clearInterval(publicHeartbeat);publicHeartbeat=setInterval(async()=>{const hb=await supabase.rpc("deflect_public_server_heartbeat",{p_player_id:publicPlayerId});if(hb.error||hb.data===false)status("Public server heartbeat lost. Rejoin public matchmaking.");},12000);
@@ -498,7 +557,7 @@ async function joinPublic(){
   bridge()?.setPublicBotCount?.(server.bot_count);
   await join(server.server_code,{preserveMembership:true});
 }
-$("mpCreate").onclick=()=>join(makeCode());
+setChatConnected(false);\n$("mpCreate").onclick=()=>join(makeCode());
 $("mpJoin").onclick=()=>join($("mpCode").value);
 $("mpLeave").onclick=()=>{leave();status("You left the room.")};
 $("mpCode").onkeydown=e=>{if(e.key==="Enter")join($("mpCode").value)};
