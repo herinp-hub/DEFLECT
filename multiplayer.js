@@ -11,87 +11,214 @@ style.textContent=`
 #deflectMp summary::-webkit-details-marker{display:none}
 #deflectMp .mpBody{padding:0 12px 12px}
 #deflectMp input,#deflectMp button{box-sizing:border-box;width:100%;margin:4px 0;padding:9px;border-radius:8px;border:1px solid #78eaff77;background:#102b48;color:#f2fbff;font:700 11px system-ui}
-#deflectMp button{cursor:pointer;background:linear-gradient(110deg,#12547a,#49317e)}
-#deflectMp button:disabled{opacity:.45;cursor:default}
+#deflectMp button{cursor:pointer;background:linear-gradient(110deg,#12547a,#49317e);transition:transform .12s ease,filter .12s ease,box-shadow .12s ease}
+#deflectMp button:active{transform:translateY(2px) scale(.98);filter:brightness(1.3);box-shadow:0 0 0 2px #8feaff55}
+#deflectMp button:disabled{opacity:.55;cursor:wait}
+#deflectMp button.mpBusy{filter:brightness(1.25);box-shadow:0 0 0 1px #8feaff88;cursor:progress}
+#deflectMp button.mpBusy:after{content:'  •••';letter-spacing:2px;animation:mpPulse .8s infinite}
+@keyframes mpPulse{50%{opacity:.25}}
 #deflectMp .mpRow{display:flex;gap:6px}
 #deflectMp .mpRow>*{min-width:0;flex:1}
 #deflectMp .mpMuted{color:#9dbbd1;font-size:10px}
 #deflectMp #mpPlayers{padding-left:17px;margin:6px 0}
+#deflectMp .mpStaff{margin-top:9px;padding-top:8px;border-top:1px solid #78eaff44}
+#deflectMp .mpStaffList{display:grid;gap:5px;margin-top:7px}
+#deflectMp .mpStaffRow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#deflectMp .mpStaffRow span{flex:1;min-width:90px}
 #deflectMp #mpStatus{min-height:16px;color:#8feaff;margin-top:5px}
+
 #deflectMp #mpHost{color:#ffc977;font-size:10px}
+#deflectMp #mpChat{position:fixed;z-index:119;left:14px;bottom:14px;width:min(340px,calc(100vw - 28px));color:#eafaff;font:12px system-ui}
+#deflectMp #mpChat details{border:1px solid #78eaff99;border-radius:13px;background:rgba(4,16,35,.96);box-shadow:0 10px 35px #0009;overflow:hidden}
+#deflectMp #mpChat summary{padding:10px 13px}
+#deflectMp #mpChatBody{padding:0 10px 10px}
+#deflectMp #mpChatMessages{height:170px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:7px;background:#061326aa;border:1px solid #78eaff33;border-radius:8px}
+#deflectMp .mpChatLine{overflow-wrap:anywhere;line-height:1.35}
+#deflectMp .mpChatName{color:#8feaff;font-weight:900}
+#deflectMp .mpChatTime{color:#7896ad;font-size:9px;margin-left:5px}
+#deflectMp #mpChatComposer{display:flex;gap:5px;margin-top:6px}
+#deflectMp #mpChatInput{flex:1;min-width:0;margin:0}
+#deflectMp #mpChatSend{width:76px;margin:0}
+#deflectMp #mpChatHint{font-size:9px;color:#9dbbd1;margin-top:4px}
+@media(max-width:600px){#deflectMp #mpChat{width:min(270px,calc(100vw - 28px))}#deflectMp #mpChatMessages{height:135px}}
+
 @media(max-width:600px){#deflectMp{width:min(190px,calc(100vw - 28px))}#deflectMp summary{font-size:9px;padding:9px 8px}}
 `;
 document.head.appendChild(style);
 root.id="deflectMp";
 root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div class="mpBody">
-<div class="mpMuted">Choose your callsign, then create a room and share its six-character code.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE NAME</button></div><div class="mpRow"><input id="mpEmail" type="email" placeholder="ADMIN EMAIL (OPTIONAL)"><button id="mpLogin">ADMIN SIGN IN</button></div><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div><div id="mpEventTools" style="display:none;margin-top:8px"><input id="mpAdminMessage" maxlength="140" placeholder="ANNOUNCEMENT"><button id="mpAnnounce">SEND ANNOUNCEMENT</button><select id="mpAdminEvent"><option value="giant_orb">GIANT ORB</option><option value="double_rewards">DOUBLE COINS</option><option value="orb_rush">ORB RUSH</option><option value="low_gravity">LOW GRAVITY</option><option value="rainbow_arena">RAINBOW ARENA</option><option value="meteor_shower">METEOR SHOWER</option></select><button id="mpStartEvent">START 60-SECOND EVENT</button></div><div style="margin-top:8px"><button id="mpAuditRefresh">REFRESH AUDIT LOG</button><div id="mpAdminAudit" class="mpMuted"></div></div><div id="mpBanTools" style="display:none;margin-top:8px"><button id="mpBansRefresh">REFRESH BAN LIST</button><div id="mpAdminBans" class="mpMuted"></div></div><div style="margin-top:9px;padding-top:8px;border-top:1px solid #78eaff44"><b style="color:#8feaff">ADMIN COMMANDS</b><input id="mpAdminCommand" maxlength="220" autocomplete="off" placeholder="/help · /kick Player · /announce Hello"><button id="mpCommandRun">RUN COMMAND</button><div class="mpMuted">Try /help for the full command list. Commands are checked by Supabase permissions.</div></div></section>
-<div class="mpRow"><button id="mpCreate">CREATE ROOM</button><button id="mpLeave" disabled>LEAVE</button></div>
-<div class="mpRow"><input id="mpCode" maxlength="6" placeholder="ROOM CODE" autocomplete="off"><button id="mpJoin">JOIN</button></div>
+<div class="mpMuted">Choose a username for this tab. It appears above your player in the lobby.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE USERNAME</button></div><input id="mpEmail" type="email" value="herinppatel@gmail.com" placeholder="OWNER EMAIL" autocomplete="username"><input id="mpPassword" type="password" placeholder="OWNER PASSWORD" autocomplete="current-password"><div class="mpRow"><button id="mpLogin">SIGN IN WITH PASSWORD</button><button id="mpResetPassword">SET / RESET PASSWORD</button></div><section id="mpPasswordRecovery" style="display:none;margin-top:7px;padding:8px;border:1px solid #8feaff66;border-radius:8px"><b style="color:#8feaff">SET YOUR NEW OWNER PASSWORD</b><input id="mpNewPassword" type="password" minlength="8" autocomplete="new-password" placeholder="NEW PASSWORD · 8+ CHARACTERS"><button id="mpSavePassword">SAVE NEW PASSWORD</button></section><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><section id="mpStaffTools" class="mpStaff" style="display:none"><b style="color:#8feaff">STAFF MANAGER · OWNER ONLY</b><div class="mpMuted">Enter an existing DEFLECT username to assign or remove a staff rank.</div><input id="mpStaffUsername" maxlength="16" placeholder="PLAYER USERNAME"><select id="mpStaffRole"><option value="co_owner">CO-OWNER</option><option value="admin">ADMIN</option><option value="moderator">MODERATOR</option><option value="player">PLAYER · REMOVE STAFF</option></select><button id="mpStaffAssign">ASSIGN RANK</button><button id="mpStaffRefresh">REFRESH STAFF LIST</button><div id="mpStaffList" class="mpStaffList mpMuted">No staff loaded.</div></section><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div><div id="mpEventTools" style="display:none;margin-top:8px"><input id="mpAdminMessage" maxlength="140" placeholder="ANNOUNCEMENT" autocomplete="off" onkeydown="event.stopPropagation()" onkeyup="event.stopPropagation()"><button id="mpAnnounce">SEND ANNOUNCEMENT</button><select id="mpAdminEvent"><option value="giant_orb">GIANT ORB · BIG</option><option value="double_rewards">DOUBLE COINS · BIG REWARDS</option><option value="orb_rush">⚠️ ORB RUSH · OP</option><option value="low_gravity">LOW GRAVITY · CONTROL</option><option value="rainbow_arena">RAINBOW ARENA · STYLE</option><option value="meteor_shower">⚠️ METEOR SHOWER · OP</option></select><button id="mpStartEvent">START 5-MINUTE EVENT</button></div><div style="margin-top:8px"><button id="mpAuditRefresh">REFRESH AUDIT LOG</button><div id="mpAdminAudit" class="mpMuted"></div></div><div id="mpBanTools" style="display:none;margin-top:8px"><button id="mpBansRefresh">REFRESH BAN LIST</button><div id="mpAdminBans" class="mpMuted"></div></div><div style="margin-top:9px;padding-top:8px;border-top:1px solid #78eaff44"><b style="color:#8feaff">ADMIN COMMANDS</b><input id="mpAdminCommand" maxlength="220" autocomplete="off" placeholder="/help · /kick Player · /announce Hello"><button id="mpCommandRun">RUN COMMAND</button><div class="mpMuted">Try /help for the full command list. Commands are checked by Supabase permissions.</div></div></section>
+<div class="mpRow"><button id="mpCreate">CREATE PRIVATE SERVER</button><button id="mpLeave" disabled>LEAVE</button></div>
+<div class="mpRow"><input id="mpCode" maxlength="6" placeholder="PRIVATE SERVER CODE" autocomplete="off"><button id="mpJoin">JOIN PRIVATE</button></div>
 <div id="mpRoom" class="mpMuted">Not connected to a room</div><div id="mpHost"></div>
 <b>PLAYERS IN ROOM</b><ul id="mpPlayers"><li class="mpMuted">No room joined</li></ul>
 <div class="mpMuted">Start a round to sync player movement and the arena ball.</div>
-<div id="mpStatus" role="status" aria-live="polite">Ready</div></div></details>`;
+<div id="mpStatus" role="status" aria-live="polite">Ready</div></div></details><section id="mpChat"><details><summary>💬 SERVER CHAT</summary><div id="mpChatBody"><div id="mpChatMessages" aria-live="polite"><div class="mpMuted">Join a server to chat with players.</div></div><div id="mpChatComposer"><input id="mpChatInput" maxlength="180" placeholder="Message your server…" autocomplete="off"><button id="mpChatSend" disabled>SEND</button></div><div id="mpChatHint">Messages are live in this server only · inappropriate words are filtered</div></div></details></section>`;
 document.body.appendChild(root);
 const $=id=>root.querySelector("#"+id);
+const adminShortcut=document.createElement("button");
+adminShortcut.id="mpAdminShortcut";
+adminShortcut.type="button";
+adminShortcut.textContent="⚙ ADMIN PANEL";
+adminShortcut.style.cssText="display:none;position:fixed;top:14px;right:14px;z-index:130;width:auto;max-width:calc(100vw - 28px);padding:10px 14px;border:1px solid #ffc977aa;border-radius:10px;background:linear-gradient(110deg,#704715,#49317e);color:#fff4d7;font:900 11px system-ui;letter-spacing:.08em;box-shadow:0 8px 24px #0008;cursor:pointer";
+adminShortcut.addEventListener("click",()=>{
+  const account=root.querySelector("#deflectMp > details");
+  if(account)account.open=true;
+  const panel=$("mpAdmin");
+  if(panel){panel.style.display="block";panel.scrollIntoView({behavior:"smooth",block:"nearest"});}
+});
+document.body.appendChild(adminShortcut);
 if(!cfg?.url||!cfg?.publishableKey){$("mpStatus").textContent="Supabase setup is missing.";throw new Error("DEFLECT Supabase config is missing");}
-const supabase=createClient(cfg.url,cfg.publishableKey,{realtime:{params:{eventsPerSecond:20}}});
-const selfId=crypto.randomUUID();
+const selfId=sessionStorage.getItem("deflectMpPlayerId")||crypto.randomUUID();sessionStorage.setItem("deflectMpPlayerId",selfId);
+// Keep Supabase guest sessions isolated per browser tab. sessionStorage is tab-scoped,
+// so each open tab receives its own auth identity and its own public-lobby membership.
+const supabase=createClient(cfg.url,cfg.publishableKey,{auth:{storage:window.sessionStorage,storageKey:"deflect-auth-"+selfId,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},realtime:{params:{eventsPerSecond:20}}});
+// Keep ordinary player auth isolated per tab, but persist the verified Owner admin session
+// separately so closing the tab does not require another email link.
+const OWNER_SESSION_KEY="deflect-owner-session-v1";
+const isOwnerEmail=session=>!!session&&!session.user?.is_anonymous&&String(session.user?.email||"").toLowerCase()==="herinppatel@gmail.com";
+function persistOwnerSession(session){try{if(isOwnerEmail(session)&&session.access_token&&session.refresh_token)localStorage.setItem(OWNER_SESSION_KEY,JSON.stringify({access_token:session.access_token,refresh_token:session.refresh_token}));}catch(_){}}
+function clearPersistedOwnerSession(){try{localStorage.removeItem(OWNER_SESSION_KEY);}catch(_){}}
 window.__DEFLECT_MP_SELF_ID__=selfId;
-let playerName=(()=>{let n=localStorage.getItem("deflectPlayerName");if(!n){n="Pilot-"+Math.floor(1000+Math.random()*9000);localStorage.setItem("deflectPlayerName",n)}return n})();
+let playerName=(()=>{let n=sessionStorage.getItem("deflectPlayerName");if(!n){n="Pilot-"+Math.floor(1000+Math.random()*9000);sessionStorage.setItem("deflectPlayerName",n)}return n})();
 window.__DEFLECT_MP_NAME__=playerName;
 let joinedAt=Date.now();
 $("mpName").value=playerName;
-let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0;
+let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,publicPlayerId=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,lastStaffRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
+let ownerRestorePromise=Promise.resolve();
 const status=s=>$("mpStatus").textContent=s;
+async function withButton(button,label,task){
+  if(!button||button.disabled)return;
+  const original=button.textContent;
+  button.disabled=true;button.classList.add("mpBusy");button.textContent=label;
+  try{return await task();}
+  catch(error){status("Action failed: "+(error?.message||String(error)));return null;}
+  finally{button.disabled=false;button.classList.remove("mpBusy");button.textContent=original;}
+}
+let lastPresenceAlive=null;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
+
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
+const CHAT_BLOCKED_TERMS=["fuck","shit","bitch","asshole","bastard","dick","piss","cunt","motherfucker","fucker","fag","faggot","nigger","nigga","retard","whore","slut"];
+let lastChatSentAt=0,chatHistory=[];
+function censorChatMessage(value){
+  const raw=String(value||"").slice(0,180);
+  return raw.split(/(\s+)/).map(part=>{
+    if(!part.trim())return part;
+    const normalized=part.toLowerCase().replace(/[013457@]/g,c=>({"0":"o","1":"i","3":"e","4":"a","5":"s","7":"t","@":"a"}[c])).replace(/[^a-z]/g,"");
+    if(!normalized)return part;
+    const blocked=CHAT_BLOCKED_TERMS.some(term=>normalized===term||(normalized.startsWith(term)&&normalized.length-term.length<=3)||(normalized.endsWith(term)&&normalized.length-term.length<=3));
+    return blocked?"#".repeat(Math.max(4,part.length)):part;
+  }).join("");
+}
+function renderChatMessage(message){
+  const box=$("mpChatMessages");if(!box)return;
+  const empty=box.querySelector(".mpMuted");if(empty)box.replaceChildren();
+  const line=document.createElement("div");line.className="mpChatLine";
+  const name=document.createElement("span");name.className="mpChatName";name.textContent=String(message.name||"Player").slice(0,20);
+  const time=document.createElement("span");time.className="mpChatTime";time.textContent=new Date(message.at||Date.now()).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+  const body=document.createElement("div");body.textContent=censorChatMessage(message.text);
+  line.append(name,time,body);box.appendChild(line);
+  while(box.children.length>60)box.firstElementChild.remove();
+  box.scrollTop=box.scrollHeight;
+}
+async function sendChatMessage(){
+  const input=$("mpChatInput"),button=$("mpChatSend");
+  if(!channel||!roomCode){status("Join a server before chatting.");return;}
+  const now=Date.now();if(now-lastChatSentAt<1000){status("Slow down a little before sending another message.");return;}
+  const rawText=input.value.trim();if(!rawText){status("Type a message first.");return;}const text=censorChatMessage(rawText).slice(0,180);
+  lastChatSentAt=now;button.disabled=true;
+  const payload={id:selfId,name:playerName,role:currentRole,text,at:now};
+  renderChatMessage(payload);
+  const result=await send("chat-message",payload);
+  if(result&&result!=="ok"){status("Chat message could not be sent. Try again.");}
+  input.value="";button.disabled=!channel;
+}
+$("mpChatSend").onclick=()=>withButton($("mpChatSend"),"SENDING",sendChatMessage);
+$("mpChatInput").onkeydown=e=>{e.stopPropagation();if(e.key==="Enter"){e.preventDefault();sendChatMessage();}};
+function setChatConnected(connected){
+  $("mpChatSend").disabled=!connected;
+  $("mpChatInput").disabled=!connected;
+  if(!connected){$("mpChatMessages").replaceChildren();const hint=document.createElement("div");hint.className="mpMuted";hint.textContent="Join a server to chat with players."; $("mpChatMessages").appendChild(hint);}
+}
+
 
 async function refreshAuth(session){
-  authSession=session||null;currentRole="player";
+  const nextPublicPlayerId=session?.user?.id||null;
+  if(publicServerId&&publicPlayerId&&nextPublicPlayerId!==publicPlayerId)await leave();
+  authSession=session||null;publicPlayerId=nextPublicPlayerId;currentRole="player";
   if(authSession){
+    if(!authSession.user.is_anonymous&&String(authSession.user.email||"").toLowerCase()==="herinppatel@gmail.com"){
+      const claim=await supabase.rpc("deflect_claim_owner");
+      if(claim.error)status("Owner setup: verify the email link, then reload DEFLECT.");
+    }
+    const profileResult=await supabase.rpc("deflect_set_my_username",{p_username:playerName});
+    if(profileResult.error&&profileResult.error.message.includes("already taken"))status("Your username is already in use. Choose a different username.");
     const roleResult=await supabase.rpc("deflect_my_role");
     if(!roleResult.error)currentRole=roleResult.data||"player";
     const banResult=await supabase.from("deflect_bans").select("user_id").eq("user_id",authSession.user.id).maybeSingle();
     if(!banResult.error&&banResult.data){status("This account is banned from DEFLECT.");await leave();}
-    $("mpAuthStatus").textContent=authSession.user.email+" · "+currentRole.toUpperCase();
+    $("mpAuthStatus").textContent=(authSession.user.is_anonymous?"GUEST":(authSession.user.email||"SIGNED IN"))+" · "+currentRole.toUpperCase();
     $("mpLogin").style.display="none";$("mpEmail").style.display="none";$("mpLogout").style.display="block";
     if(adminPoll)clearInterval(adminPoll);
     lastAdminCheck=new Date().toISOString();adminPoll=setInterval(pollAdminActions,2500);
   }else{
     $("mpAuthStatus").textContent="Not signed in · players can join as guests";
     $("mpLogin").style.display="block";$("mpEmail").style.display="block";$("mpLogout").style.display="none";
-    if(channel)await channel.track({player:{id:selfId,name:playerName,role:"player",userId:null,joinedAt}});
+    if(channel)await channel.track({player:{id:selfId,name:playerName,role:"player",userId:null,joinedAt,alive:!!bridge()?.getLocalState?.()?.alive}});
     if(adminPoll)clearInterval(adminPoll);adminPoll=setInterval(pollAdminActions,3500);
   }
-  window.__DEFLECT_MP_ROLE__=currentRole;if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});renderAdminConsole();
+  window.__DEFLECT_MP_ROLE__=currentRole;if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:!!bridge()?.getLocalState?.()?.alive}});renderAdminConsole();
 }
+
+async function refreshStaffManager(force=false){
+  if(currentRole!=="owner"||(!force&&Date.now()-lastStaffRefresh<5000))return;
+  lastStaffRefresh=Date.now();
+  const box=$("mpStaffList");if(!box)return;
+  const result=await supabase.rpc("deflect_list_staff");
+  box.replaceChildren();
+  if(result.error){box.textContent="Staff list unavailable: "+result.error.message;return;}
+  const rows=result.data||[];
+  if(!rows.length){box.textContent="No staff assigned yet.";return;}
+  for(const item of rows){
+    const row=document.createElement("div");row.className="mpStaffRow";
+    const label=document.createElement("span");label.textContent=(item.username||"Unknown")+" · "+String(item.role||"").replaceAll("_"," ").toUpperCase();
+    const remove=document.createElement("button");remove.textContent="REMOVE";remove.style.width="auto";
+    remove.onclick=()=>withButton(remove,"REMOVING",async()=>{const done=await supabase.rpc("deflect_assign_role",{target_user:item.user_id,new_role:"player"});status(done.error?"Could not remove staff: "+done.error.message:"Staff rank removed for "+item.username);await refreshStaffManager(true);});
+    row.append(label,remove);box.appendChild(row);
+  }
+}
+
 function renderAdminConsole(){
   const panel=$("mpAdmin"),list=$("mpAdminMembers");
-  const canAdmin=["owner","head_admin","admin","moderator"].includes(currentRole);
+  const canAdmin=["owner","co_owner","admin","moderator"].includes(currentRole);
   panel.style.display=canAdmin?"block":"none";
-  $("mpEventTools").style.display=["owner","head_admin"].includes(currentRole)?"block":"none";
-  $("mpBanTools").style.display=["owner","head_admin","admin"].includes(currentRole)?"block":"none";
+  adminShortcut.style.display=canAdmin?"block":"none";
+  $("mpEventTools").style.display=["owner","co_owner"].includes(currentRole)?"block":"none";
+  $("mpStaffTools").style.display=currentRole==="owner"?"block":"none";
+  if(currentRole==="owner")void refreshStaffManager();
+  $("mpBanTools").style.display=["owner","co_owner","admin"].includes(currentRole)?"block":"none";
   if(!canAdmin)return;
   list.replaceChildren();
   const members=roomPlayers();
   if(!members.length){list.textContent="Join a room to manage players.";return;}
   for(const p of members){
     const row=document.createElement("div");row.style.cssText="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:7px";
-    const label=document.createElement("span");label.textContent=(p.name||"Player")+" · "+(p.role||"player");label.style.flex="1";row.appendChild(label);
+    const label=document.createElement("span");label.textContent=(p.name||"Player")+" · "+(p.role||"player");label.style.flex="1";row.appendChild(label);if(p.role==="owner"||(p.userId===authSession?.user?.id&&currentRole==="owner")){const ownerBadge=document.createElement("span");ownerBadge.textContent="✓ VERIFIED OWNER";ownerBadge.style.cssText="padding:2px 7px;border-radius:10px;background:#1769d2;color:white;font-size:10px;font-weight:900;letter-spacing:.04em";row.appendChild(ownerBadge);}
     if(p.userId&&p.userId!==authSession?.user?.id){
       if(currentRole==="owner"){
         const select=document.createElement("select");select.style.cssText="max-width:105px;background:#102b48;color:white;border:1px solid #78eaff77;border-radius:6px;padding:5px";
-        ["player","moderator","admin","head_admin"].forEach(role=>{const option=document.createElement("option");option.value=role;option.textContent=role.toUpperCase();select.appendChild(option);});
+        ["player","moderator","admin","co_owner"].forEach(role=>{const option=document.createElement("option");option.value=role;option.textContent=role.toUpperCase();select.appendChild(option);});
         select.value=p.role||"player";const assign=document.createElement("button");assign.textContent="ROLE";assign.style.width="auto";
-        assign.onclick=async()=>{const result=await supabase.rpc("deflect_assign_role",{target_user:p.userId,new_role:select.value});status(result.error?"Role update failed: "+result.error.message:"Role updated for "+p.name);};
+        assign.onclick=()=>withButton(assign,"SAVING",async()=>{const result=await supabase.rpc("deflect_assign_role",{target_user:p.userId,new_role:select.value});status(result.error?"Role update failed: "+result.error.message:"Role updated for "+p.name);});
         row.append(select,assign);
       }
-      if(["owner","head_admin","admin","moderator"].includes(currentRole)){
-        const kick=document.createElement("button");kick.textContent="KICK";kick.style.width="auto";kick.onclick=()=>issueAdminAction(p.userId,"kick",{});
+      if(["owner","co_owner","admin","moderator"].includes(currentRole)){
+        const kick=document.createElement("button");kick.textContent="KICK";kick.style.width="auto";kick.onclick=()=>withButton(kick,"KICKING",()=>issueAdminAction(p.userId,"kick",{}));
         row.appendChild(kick);
       }
-      if(["owner","head_admin","admin"].includes(currentRole)){
-        const ban=document.createElement("button");ban.textContent="BAN";ban.style.width="auto";ban.onclick=()=>issueAdminAction(p.userId,"ban",{reason:"DEFLECT moderation"});row.appendChild(ban);
+      if(["owner","co_owner","admin"].includes(currentRole)){
+        const ban=document.createElement("button");ban.textContent="BAN";ban.style.width="auto";ban.onclick=()=>withButton(ban,"BANNING",()=>issueAdminAction(p.userId,"ban",{reason:"DEFLECT moderation"}));row.appendChild(ban);
       }
     }else if(!p.userId){const guest=document.createElement("small");guest.textContent=" · guest (sign-in required for moderation)";row.appendChild(guest);}
     list.appendChild(row);
@@ -105,32 +232,48 @@ async function refreshAdminBans(){
   for(const item of result.data){
     const row=document.createElement("div");row.style.cssText="display:flex;align-items:center;gap:5px;margin-top:6px;flex-wrap:wrap";
     const label=document.createElement("small");label.textContent=item.user_id.slice(0,8)+"… · "+(item.reason||"No reason");label.style.flex="1";
-    const unban=document.createElement("button");unban.textContent="UNBAN";unban.style.width="auto";unban.onclick=()=>issueAdminAction(item.user_id,"unban",{});
+    const unban=document.createElement("button");unban.textContent="UNBAN";unban.style.width="auto";unban.onclick=()=>withButton(unban,"UNBANNING",()=>issueAdminAction(item.user_id,"unban",{}));
     row.append(label,unban);box.appendChild(row);
   }
 }
 async function issueAdminAction(targetUser,action,payload){
-  const result=await supabase.rpc("deflect_admin_action",{target_user:targetUser,action_name:action,action_payload:payload});
-  status(result.error?"Action failed: "+result.error.message:action.toUpperCase()+" sent.");
-  if(!result.error&&action==="unban")refreshAdminBans();
+  try{
+    const result=await supabase.rpc("deflect_admin_action",{target_user:targetUser,action_name:action,action_payload:payload});
+    if(result.error){status("Action failed: "+result.error.message);return false;}
+    status(action==="announce"?"Announcement sent to all players.":action==="event"?"Event started: "+String(payload?.event||"").replaceAll("_"," ").toUpperCase():action.toUpperCase()+" sent.");
+    if(action==="unban")await refreshAdminBans();
+    return true;
+  }catch(error){status("Action failed: "+(error?.message||String(error)));return false;}
 }
+const seenAdminActionIds=new Set();
+let lastAdminPollError="",activeEventsBootstrapped=false;
 async function pollAdminActions(){
   if(!authSession&&!channel)return;
   if(authSession&&Date.now()-lastRoleRefresh>12000){lastRoleRefresh=Date.now();const roleResult=await supabase.rpc("deflect_my_role");if(!roleResult.error&&roleResult.data!==currentRole){currentRole=roleResult.data||"player";window.__DEFLECT_MP_ROLE__=currentRole;if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession.user.id,joinedAt}});renderAdminConsole();}}
-  const since=lastAdminCheck;lastAdminCheck=new Date().toISOString();
-  const result=await supabase.from("deflect_admin_actions").select("*").gt("created_at",since).order("created_at");
-  if(result.error)return;
-  for(const item of result.data||[]){
+  const overlap=new Date(Math.max(0,Date.parse(lastAdminCheck)-5000)).toISOString();
+  const result=await supabase.from("deflect_admin_actions").select("*").gt("created_at",overlap).order("created_at");
+  if(result.error){if(lastAdminPollError!==result.error.message){lastAdminPollError=result.error.message;status("Admin updates unavailable: "+result.error.message);}return;}
+  lastAdminPollError="";
+  let rows=result.data||[];
+  if(!activeEventsBootstrapped){const recentEvents=await supabase.from("deflect_admin_actions").select("*").eq("action","event").gt("created_at",new Date(Date.now()-300000).toISOString()).order("created_at");if(!recentEvents.error){rows=[...rows,...(recentEvents.data||[])];activeEventsBootstrapped=true;}}
+  for(const item of rows){
+    const actionKey=String(item.id||item.created_at+"|"+item.action+"|"+item.target_user);
+    if(seenAdminActionIds.has(actionKey))continue;
+    seenAdminActionIds.add(actionKey);
+    if(seenAdminActionIds.size>500)seenAdminActionIds.clear();
     if(authSession&&item.target_user===authSession.user.id&&(item.action==="kick"||item.action==="ban")){
       await leave();status(item.action==="ban"?"You were banned from DEFLECT.":"An admin removed you from the room.");
     }else if(authSession&&item.target_user===authSession.user.id&&item.action==="role_change"){
       await refreshAuth(authSession);status("Your DEFLECT role was updated.");
     }else if(item.action==="event"){
-      bridge()?.applyAdminEvent?.(item.payload?.event);status(item.payload?.message||"ADMIN EVENT · "+item.action.toUpperCase());
+      const applied=bridge()?.applyAdminEvent?.(item.payload?.event,item.payload?.durationMs||300000,item.created_at);
+      status(applied===false?"Event received but could not be applied on this client.":item.payload?.message||"ADMIN EVENT · "+item.action.toUpperCase());
     }else if(item.action==="announce"){
-      status(item.payload?.message||"ADMIN ANNOUNCEMENT");
+      const message=String(item.payload?.message||"ADMIN ANNOUNCEMENT");
+      bridge()?.showAnnouncement?.(message);status("ANNOUNCEMENT · "+message);
     }
   }
+  if(rows.length){const newest=rows.reduce((v,item)=>item.created_at>v?item.created_at:v,lastAdminCheck);if(newest>lastAdminCheck)lastAdminCheck=newest;}
 }
 function roomPlayers(){
   if(!channel)return [];
@@ -150,7 +293,7 @@ async function runAdminCommand(){
   const match=raw.match(/^\/?([a-z]+)(?:\s+([\s\S]*))?$/i);
   if(!match){status("Commands start with / — try /help.");return;}
   const command=match[1].toLowerCase(),args=parseCommandWords(match[2]||"");
-  const staff=["owner","head_admin","admin","moderator"].includes(currentRole);
+  const staff=["owner","co_owner","admin","moderator"].includes(currentRole);
   if(!staff){status("Admin sign-in required.");return;}
   const target=(name)=>{const found=findRoomPlayer(name);if(found.matches){status(found.matches.length?"More than one player has that name. Use a unique username.":"Player not found in your current room.");return null;}if(!found.player.userId){status("That player is a guest. They must sign in before moderation.");return null;}if(found.player.userId===authSession?.user?.id){status("You cannot moderate yourself.");return null;}return found.player;};
   if(command==="help"){status("/players · /kick <name> · /ban <name> [reason] · /unban <id prefix> · /role <name> <role> · /announce <text> · /event <name> · /bans · /audit");return;}
@@ -160,7 +303,7 @@ async function runAdminCommand(){
     const event=(args[0]||"").toLowerCase().replaceAll("-","_");
     const allowed=["giant_orb","double_rewards","orb_rush","low_gravity","rainbow_arena","meteor_shower"];
     if(!allowed.includes(event)){status("Usage: /event giant_orb|double_rewards|orb_rush|low_gravity|rainbow_arena|meteor_shower");return;}
-    await issueAdminAction(null,"event",{event,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()});return;
+    await issueAdminAction(null,"event",{event,durationMs:300000,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()+" · 5 MINUTES · +1 COIN PER DEFLECT"});return;
   }
   if(command==="kick"||command==="ban"){
     const name=args[0];if(!name){status("Usage: /"+command+" <player name> [reason]");return;}
@@ -178,7 +321,7 @@ async function runAdminCommand(){
   if(command==="role"){
     if(currentRole!=="owner"){status("Only the owner can change staff roles.");return;}
     const name=args[0],role=(args[1]||"").toLowerCase();
-    if(!name||!["player","moderator","admin","head_admin"].includes(role)){status('Usage: /role "player name" player|moderator|admin|head_admin');return;}
+    if(!name||!["player","moderator","admin","co_owner"].includes(role)){status('Usage: /role "player name" player|moderator|admin|co_owner');return;}
     const p=target(name);if(!p)return;
     const result=await supabase.rpc("deflect_assign_role",{target_user:p.userId,new_role:role});
     status(result.error?"Role update failed: "+result.error.message:"Role set: "+p.name+" → "+role.toUpperCase());return;
@@ -189,10 +332,12 @@ async function runAdminCommand(){
 }
 
 function electHost(){
-  const list=roomPlayers().slice().sort((a,b)=>((a.joinedAt||0)-(b.joinedAt||0))||String(a.id).localeCompare(String(b.id)));
+  const members=roomPlayers();
+  const living=matchStarted?members.filter(p=>p.alive!==false):members;
+  const list=(living.length?living:members).slice().sort((a,b)=>((a.joinedAt||0)-(b.joinedAt||0))||String(a.id).localeCompare(String(b.id)));
   isHost=list[0]?.id===selfId;
   $("mpHost").textContent=isHost?"HOST · this device controls the shared ball":"CONNECTED · following room host";
-  bridge()?.setNetworkState(true,isHost,selfId);
+  bridge()?.setNetworkState(true,isHost,selfId,list[0]?.id||selfId);
 }
 function render(){
   const list=roomPlayers();
@@ -201,14 +346,15 @@ function render(){
   for(const id of players.keys())if(!present.has(id))players.delete(id);
   $("mpPlayers").replaceChildren();
   if(!unique.length){$("mpPlayers").innerHTML='<li class="mpMuted">Waiting for players…</li>';applyRemotePlayers();return}
-  unique.forEach(p=>{const li=document.createElement("li");li.textContent=(p.name||"Player")+(p.id===selfId?" (YOU)":"");$("mpPlayers").appendChild(li)});
+  unique.forEach(p=>{const li=document.createElement("li");const owner=p.role==="owner"||(p.id===selfId&&currentRole==="owner");const name=document.createElement("span");name.textContent=(p.name||"Player")+(p.id===selfId?" (YOU)":"");li.appendChild(name);if(owner){const verified=document.createElement("span");verified.textContent=" ✓";verified.title="Verified Owner";verified.setAttribute("aria-label","Verified Owner");verified.style.cssText="display:inline-flex;align-items:center;justify-content:center;margin-left:5px;padding:1px 6px;border-radius:10px;background:#1769d2;color:white;font-weight:900;font-size:11px";li.appendChild(verified);const tag=document.createElement("span");tag.textContent=" OWNER";tag.style.cssText="margin-left:4px;color:#7edbff;font-size:10px;font-weight:900;letter-spacing:.08em";li.appendChild(tag);} $("mpPlayers").appendChild(li)});
   electHost();
   applyRemotePlayers();
   renderAdminConsole();
   const state=bridge()?.getLocalState?.();
   // The room host starts the round once a second player is present. Previously
   // both clients waited for someone else to start, so neither ever launched an orb.
-  if(unique.length>=2&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver)startMatch();
+  const enoughPlayers=isPublicMatch?unique.length>=1:unique.length>=2;
+  if(enoughPlayers&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver)startMatch();
 }
 function applyRemotePlayers(){
   const remote=[...players.entries()].map(([id,state])=>({id,state}));
@@ -235,6 +381,8 @@ function startLoops(){
     if(!channel)return;
     const now=performance.now(),b=bridge(),state=b?.getLocalState?.();
     if(!state)return;
+    const aliveNow=!!state.alive;
+    if(aliveNow!==lastPresenceAlive){lastPresenceAlive=aliveNow;void channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:aliveNow}});}
     if(state.alive&&!lastAlive){matchStarted=true;send("match-start",{by:selfId,at:Date.now()});}
     lastAlive=!!state.alive;
     if(now-lastStateSent>120){
@@ -250,20 +398,23 @@ function startLoops(){
   },35);
 }
 async function leave(){
-  clearInterval(loops);loops=null;matchStarted=false;lastAlive=false;
+  clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;clearInterval(publicStatePoll);publicStatePoll=null;matchStarted=false;lastAlive=false;
+  const publicId=publicServerId,wasPublic=isPublicMatch;publicServerId=null;isPublicMatch=false;lastPresenceAlive=null;
+  if(publicId&&publicPlayerId)await supabase.rpc("deflect_leave_public_server",{p_player_id:publicPlayerId});
   const old=channel;channel=null;roomCode=null;players.clear();
-  bridge()?.setNetworkState(false,false,null);
+  bridge()?.setNetworkState(false,false,null,null);
   bridge()?.setRemotePlayers([]);
-  $("mpLeave").disabled=true;$("mpRoom").textContent="Not connected to a room";$("mpHost").textContent="";
+  if(wasPublic)bridge()?.setPublicBotCount?.(null);
+  $("mpLeave").disabled=true;setChatConnected(false);$("mpRoom").textContent="Not connected to a room";$("mpHost").textContent="";
   $("mpPlayers").innerHTML='<li class="mpMuted">No room joined</li>';
   if(old)await supabase.removeChannel(old);
 }
-async function join(raw){
+async function join(raw,options={}){
   const room=raw.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
   if(room.length!==6){status("Enter a 6-character room code.");return}
-  await leave();roomCode=room;status("Connecting to "+room+"…");
+  if(!options.preserveMembership)await leave();roomCode=room;status(isPublicMatch?"Joining a public server…":"Connecting to private server…");
   const next=supabase.channel("deflect-room-"+room,{config:{presence:{key:selfId},broadcast:{self:false}}});
-  next.on("presence",{event:"sync"},()=>{render();applyRemotePlayers()})
+  next.on("presence",{event:"sync"},()=>{render();applyRemotePlayers()})\n    .on("broadcast",{event:"chat-message"},({payload})=>{if(!payload?.text||payload.id===selfId)return;renderChatMessage({...payload,text:censorChatMessage(payload.text)});})
     .on("presence",{event:"join"},render).on("presence",{event:"leave"},()=>{render();applyRemotePlayers()})
     .on("broadcast",{event:"player-state"},({payload})=>{
       if(!payload?.id||payload.id===selfId||!payload.state)return;
@@ -274,7 +425,7 @@ async function join(raw){
       if(!isHost&&payload?.state)bridge()?.applySnapshot(payload.state);
     })
     .on("broadcast",{event:"deflect-request"},({payload})=>{
-      if(isHost&&payload?.position){const ok=bridge()?.tryRemoteDeflect(payload.position);if(ok)status("Remote deflect confirmed");}
+      if(isHost&&payload?.position){const ok=bridge()?.tryRemoteDeflect(payload.position,payload.rotation,payload.id);if(ok)status("Remote deflect confirmed");}
     })
     .on("broadcast",{event:"player-eliminated"},({payload})=>{
       if(!payload?.id)return;
@@ -283,41 +434,146 @@ async function join(raw){
       if(payload.id===selfId){bridge()?.applyNetworkElimination();status("ELIMINATED · room host confirmed the hit");}
     })
     .on("broadcast",{event:"match-start"},({payload})=>{if(payload?.by!==selfId)startMatch()})
-    .on("broadcast",{event:"host-eliminated"},({payload})=>{if(payload?.id&&payload.id!==selfId){bridge()?.applyNetworkElimination();status("HOST ELIMINATED · round ended");}});
+    .on("broadcast",{event:"host-eliminated"},({payload})=>{if(payload?.id&&payload.id!==selfId){const old=players.get(payload.id);if(old)players.set(payload.id,{...old,alive:false});applyRemotePlayers();status("HOST ELIMINATED · transferring host control");render();}});
   next.subscribe(async s=>{
     if(s==="SUBSCRIBED"){
       channel=next;
       joinedAt=Date.now();
-      await next.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});
-      $("mpRoom").textContent="ROOM CODE: "+room+" · share with friends";
-      $("mpCode").value=room;$("mpLeave").disabled=false;
-      status("Connected as "+playerName);render();startLoops();
+      // Give each public-lobby player a stable spot around the shared spawn point.
+      // Without this, every real player occupies the exact same coordinates.
+      const localState=bridge()?.getLocalState?.();
+      if(isPublicMatch&&localState?.lobbyMode&&!localState?.alive){
+        let hash=0;for(let i=0;i<selfId.length;i++)hash=(hash*31+selfId.charCodeAt(i))>>>0;
+        const angle=(hash/4294967296)*Math.PI*2;
+        const radius=3.6;
+        const p=localState.position||[29.5,18.2,0];
+        bridge()?.setLocalPosition?.([p[0]+Math.cos(angle)*radius,p[1],p[2]+Math.sin(angle)*radius]);
+      }
+      lastPresenceAlive=!!bridge()?.getLocalState?.()?.alive;
+      await next.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:lastPresenceAlive}});
+      $("mpRoom").textContent=isPublicMatch?"PUBLIC SERVER · AUTOMATIC MATCHMAKING":"PRIVATE SERVER CODE: "+room+" · share with friends";
+      $("mpCode").value=isPublicMatch?"":room;$("mpLeave").disabled=false;
+      status(isPublicMatch?"Matched into public server · connected as "+playerName:"Connected as "+playerName);setChatConnected(true);render();startLoops();
+      if(isPublicMatch){
+        await refreshPublicState();
+        clearInterval(publicHeartbeat);publicHeartbeat=setInterval(async()=>{const hb=await supabase.rpc("deflect_public_server_heartbeat",{p_player_id:publicPlayerId});if(hb.error||hb.data===false)status("Public server heartbeat lost. Rejoin public matchmaking.");},12000);
+        clearInterval(publicStatePoll);publicStatePoll=setInterval(refreshPublicState,3000);
+      }
     }else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT"){
       status("Connection failed. Check internet and try again.");
       if(channel!==next)await supabase.removeChannel(next);
+      if(isPublicMatch)await leave();
     }
   });
 }
 window.addEventListener("deflect:host-eliminated",()=>{if(channel&&isHost)send("host-eliminated",{id:selfId});});
 window.addEventListener("deflect:request",event=>{
-  const p=event.detail?.position;
-  if(channel&&Array.isArray(p))send("deflect-request",{id:selfId,position:p});
+  const state=event.detail||{},p=state.position;
+  if(channel&&Array.isArray(p))send("deflect-request",{id:selfId,position:p,rotation:state.rotation});
 });
-$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(!clean){status("Enter a username first.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;localStorage.setItem("deflectPlayerName",clean);if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt}});status("Username saved: "+clean);};
+window.addEventListener("deflect:remote-eliminated",event=>{const id=event.detail?.id;if(channel&&isHost&&id)send("player-eliminated",{id,by:selfId});});
+$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(clean.length<3){status("Username must be at least 3 characters.");return;}if(authSession){const saved=await supabase.rpc("deflect_set_my_username",{p_username:clean});if(saved.error){status("Username not saved: "+saved.error.message);return;}}playerName=clean;window.__DEFLECT_MP_NAME__=clean;sessionStorage.setItem("deflectPlayerName",clean);if(isPublicMatch){status("Updating username…");await joinPublic();}else{if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:!!bridge()?.getLocalState?.()?.alive}});status("Username saved: "+clean);}};
 $("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};
-$("mpAnnounce").onclick=()=>{const message=$("mpAdminMessage").value.trim();if(message)issueAdminAction(null,"announce",{message});};
-$("mpStartEvent").onclick=()=>{const event=$("mpAdminEvent").value;issueAdminAction(null,"event",{event,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()});};
-$("mpBansRefresh").onclick=refreshAdminBans;
-$("mpCommandRun").onclick=runAdminCommand;
+$("mpAnnounce").onclick=()=>withButton($("mpAnnounce"),"SENDING",async()=>{const message=$("mpAdminMessage").value.trim();if(!message){status("Type an announcement first.");return;}if(await issueAdminAction(null,"announce",{message}))$("mpAdminMessage").value="";});
+$("mpStartEvent").onclick=()=>withButton($("mpStartEvent"),"STARTING",async()=>{const event=$("mpAdminEvent").value;await issueAdminAction(null,"event",{event,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()});});
+$("mpBansRefresh").onclick=()=>withButton($("mpBansRefresh"),"LOADING",refreshAdminBans);
+$("mpStaffRefresh").onclick=()=>withButton($("mpStaffRefresh"),"LOADING",()=>refreshStaffManager(true));
+$("mpStaffAssign").onclick=()=>withButton($("mpStaffAssign"),"SAVING",async()=>{const username=$("mpStaffUsername").value.trim();const role=$("mpStaffRole").value;if(!username){status("Enter the player's username first.");return;}const result=await supabase.rpc("deflect_assign_role_by_username",{p_username:username,new_role:role});status(result.error?"Staff update failed: "+result.error.message:(role==="player"?"Staff rank removed for ":"Rank assigned to ")+username+".");if(!result.error){$("mpStaffUsername").value="";await refreshStaffManager(true);}});
+$("mpCommandRun").onclick=()=>withButton($("mpCommandRun"),"RUNNING",runAdminCommand);
 $("mpAdminCommand").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();runAdminCommand();}};
-$("mpAuditRefresh").onclick=async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}};
-$("mpLogin").onclick=async()=>{const email=$("mpEmail").value.trim();if(!email){status("Enter your admin email.");return;}const result=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});status(result.error?"Sign-in failed: "+result.error.message:"Magic link sent. Check your email, then return here.");};
-$("mpLogout").onclick=async()=>{await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
-supabase.auth.getSession().then(({data})=>refreshAuth(data.session));
-supabase.auth.onAuthStateChange((_event,session)=>{Promise.resolve().then(()=>refreshAuth(session));});
+$("mpAuditRefresh").onclick=()=>withButton($("mpAuditRefresh"),"LOADING",async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;status("Audit log failed: "+result.error.message);return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}status("Audit log refreshed · "+(result.data||[]).length+" entries.");});
+$("mpLogin").onclick=()=>withButton($("mpLogin"),"SIGNING IN",async()=>{
+  const email=$("mpEmail").value.trim().toLowerCase(),password=$("mpPassword").value;
+  if(email!=="herinppatel@gmail.com"){status("That email is not the DEFLECT Owner account.");return;}
+  if(!password){status("Enter your Owner password.");return;}
+  const result=await supabase.auth.signInWithPassword({email,password});
+  if(result.error){status("Password sign-in failed: "+result.error.message);return;}
+  if(!isOwnerEmail(result.data?.session)){await supabase.auth.signOut();status("This account is not the verified DEFLECT Owner.");return;}
+  persistOwnerSession(result.data.session);await refreshAuth(result.data.session);$("mpPassword").value="";status("Owner signed in successfully.");
+});
+$("mpResetPassword").onclick=()=>withButton($("mpResetPassword"),"SENDING",async()=>{
+  const email=$("mpEmail").value.trim().toLowerCase();
+  if(email!=="herinppatel@gmail.com"){status("Password setup is only available for the Owner email.");return;}
+  const result=await supabase.auth.resetPasswordForEmail(email,{redirectTo:location.origin});
+  status(result.error?"Password setup email failed: "+result.error.message:"Password setup link sent. Open it on this same DEFLECT site, then choose your new password. Email rate limits may delay delivery.");
+});
+$("mpSavePassword").onclick=()=>withButton($("mpSavePassword"),"SAVING",async()=>{
+  const password=$("mpNewPassword").value;
+  if(password.length<8){status("Use at least 8 characters for your password.");return;}
+  const result=await supabase.auth.updateUser({password});
+  if(result.error){status("Password update failed: "+result.error.message);return;}
+  $("mpNewPassword").value="";$("mpPasswordRecovery").style.display="none";
+  status("Owner password saved. You can now sign in with your email and password.");
+});
+$("mpLogout").onclick=async()=>{await leave();await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
+supabase.auth.onAuthStateChange((event,session)=>{
+  if(event==="PASSWORD_RECOVERY"){$("mpPasswordRecovery").style.display="block";status("Recovery link verified. Set your new Owner password below.");}
+  if(isOwnerEmail(session))persistOwnerSession(session);
+  else if(event==="SIGNED_OUT"&&isOwnerEmail(authSession))clearPersistedOwnerSession();
+  Promise.resolve().then(()=>refreshAuth(session));
+});
+ownerRestorePromise=(async()=>{
+  const current=await supabase.auth.getSession();
+  const currentSession=current.data?.session||null;
+  // Finish Owner restoration before automatic guest matchmaking can create or
+  // replace the tab's auth identity.
+  if(isOwnerEmail(currentSession)){
+    persistOwnerSession(currentSession);
+    await refreshAuth(currentSession);
+    return;
+  }
+  let saved=null;
+  try{saved=JSON.parse(localStorage.getItem(OWNER_SESSION_KEY)||"null");}catch(_){}
+  if(saved?.access_token&&saved?.refresh_token){
+    const restored=await supabase.auth.setSession(saved);
+    if(!restored.error&&isOwnerEmail(restored.data?.session)){
+      persistOwnerSession(restored.data.session);
+      await refreshAuth(restored.data.session);
+      return;
+    }
+    if(restored.error)clearPersistedOwnerSession();
+  }
+  await refreshAuth(currentSession);
+})();
 if(!adminPoll)adminPoll=setInterval(pollAdminActions,3500);
-$("mpCreate").onclick=()=>join(makeCode());
+async function refreshPublicState(){
+  if(!isPublicMatch)return;
+  const result=await supabase.rpc("deflect_public_server_state",{p_player_id:publicPlayerId});
+  if(result.error){status("Public server status is temporarily unavailable.");return;}
+  const state=Array.isArray(result.data)?result.data[0]:result.data;
+  if(!state?.active){status("Public server membership expired. Rejoin public matchmaking.");return;}
+  bridge()?.setPublicBotCount?.(state.bot_count);
+  $("mpRoom").textContent="PUBLIC SERVER · "+state.real_players+"/16 PLAYERS · "+state.bot_count+" BOTS";
+}
+async function ensurePublicIdentity(){
+  let session=authSession;
+  if(!session?.user?.id){const current=await supabase.auth.getSession();session=current.data?.session||null;}
+  if(!session?.user?.id){
+    const result=await supabase.auth.signInAnonymously();
+    if(result.error){status("Guest matchmaking sign-in failed: "+result.error.message);return null;}
+    session=result.data?.session||null;
+    if(!session?.user?.id){status("Guest sign-in did not return a player identity. Please try again.");return null;}
+    await refreshAuth(session);
+  }
+  authSession=session;publicPlayerId=session.user.id;return publicPlayerId;
+}
+async function joinPublic(){
+  await ownerRestorePromise;
+  await leave();
+  const playerId=await ensurePublicIdentity();if(!playerId)return;
+  status("Finding an available public server…");
+  const result=await supabase.rpc("deflect_join_public_server",{p_player_id:playerId,p_player_name:playerName});
+  if(result.error){status("Public matchmaking failed: "+result.error.message);return;}
+  const server=Array.isArray(result.data)?result.data[0]:result.data;
+  if(!server?.server_code||!server?.server_id){status("Matchmaking returned an invalid server. Try again.");return;}
+  publicServerId=server.server_id;isPublicMatch=true;
+  bridge()?.setPublicBotCount?.(server.bot_count);
+  await join(server.server_code,{preserveMembership:true});
+}
+setChatConnected(false);\n$("mpCreate").onclick=()=>join(makeCode());
 $("mpJoin").onclick=()=>join($("mpCode").value);
 $("mpLeave").onclick=()=>{leave();status("You left the room.")};
 $("mpCode").onkeydown=e=>{if(e.key==="Enter")join($("mpCode").value)};
 window.addEventListener("pagehide",()=>{if(channel)supabase.removeChannel(channel)});
+// Automatically place every visitor into public matchmaking when DEFLECT loads.
+setTimeout(()=>{if(!channel&&!isPublicMatch)void joinPublic();},0);
