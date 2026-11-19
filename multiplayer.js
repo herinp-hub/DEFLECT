@@ -58,6 +58,7 @@ window.__DEFLECT_MP_NAME__=playerName;
 let joinedAt=Date.now();
 $("mpName").value=playerName;
 let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,publicPlayerId=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,lastStaffRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
+let ownerRestorePromise=Promise.resolve();
 const status=s=>$("mpStatus").textContent=s;
 async function withButton(button,label,task){
   if(!button||button.disabled)return;
@@ -439,11 +440,11 @@ supabase.auth.onAuthStateChange((event,session)=>{
   else if(event==="SIGNED_OUT"&&isOwnerEmail(authSession))clearPersistedOwnerSession();
   Promise.resolve().then(()=>refreshAuth(session));
 });
-(async()=>{
+ownerRestorePromise=(async()=>{
   const current=await supabase.auth.getSession();
   const currentSession=current.data?.session||null;
-  // An anonymous player session can exist after auto-matchmaking. Do not let it
-  // short-circuit restoration of the verified Owner session saved across reloads.
+  // Finish Owner restoration before automatic guest matchmaking can create or
+  // replace the tab's auth identity.
   if(isOwnerEmail(currentSession)){
     persistOwnerSession(currentSession);
     await refreshAuth(currentSession);
@@ -485,6 +486,7 @@ async function ensurePublicIdentity(){
   authSession=session;publicPlayerId=session.user.id;return publicPlayerId;
 }
 async function joinPublic(){
+  await ownerRestorePromise;
   await leave();
   const playerId=await ensurePublicIdentity();if(!playerId)return;
   status("Finding an available public server…");
