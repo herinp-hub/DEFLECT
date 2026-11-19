@@ -91,7 +91,7 @@ const CHAT_BLOCKED_TERMS=["fuck","shit","bitch","asshole","bastard","dick","piss
 let lastChatSentAt=0,chatHistory=[];
 function censorChatMessage(value){
   const raw=String(value||"").slice(0,180);
-  return raw.split(/(\\s+)/).map(part=>{
+  return raw.split(/(\s+)/).map(part=>{
     if(!part.trim())return part;
     const normalized=part.toLowerCase().replace(/[013457@]/g,c=>({"0":"o","1":"i","3":"e","4":"a","5":"s","7":"t","@":"a"}[c])).replace(/[^a-z]/g,"");
     if(!normalized)return part;
@@ -114,7 +114,7 @@ async function sendChatMessage(){
   const input=$("mpChatInput"),button=$("mpChatSend");
   if(!channel||!roomCode){status("Join a server before chatting.");return;}
   const now=Date.now();if(now-lastChatSentAt<1000){status("Slow down a little before sending another message.");return;}
-  const text=censorChatMessage(input.value.trim()).slice(0,180);if(!text.replace(/#/g,"").trim()){status("Type a message first.");return;}
+  const rawText=input.value.trim();if(!rawText){status("Type a message first.");return;}const text=censorChatMessage(rawText).slice(0,180);
   lastChatSentAt=now;button.disabled=true;
   const payload={id:selfId,name:playerName,role:currentRole,text,at:now};
   renderChatMessage(payload);
