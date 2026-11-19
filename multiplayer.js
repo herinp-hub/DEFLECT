@@ -418,13 +418,26 @@ supabase.auth.onAuthStateChange((event,session)=>{
 });
 (async()=>{
   const current=await supabase.auth.getSession();
-  if(current.data?.session){await refreshAuth(current.data.session);return;}
+  const currentSession=current.data?.session||null;
+  // An anonymous player session can exist after auto-matchmaking. Do not let it
+  // short-circuit restoration of the verified Owner session saved across reloads.
+  if(isOwnerEmail(currentSession)){
+    persistOwnerSession(currentSession);
+    await refreshAuth(currentSession);
+    return;
+  }
   let saved=null;
   try{saved=JSON.parse(localStorage.getItem(OWNER_SESSION_KEY)||"null");}catch(_){}
   if(saved?.access_token&&saved?.refresh_token){
     const restored=await supabase.auth.setSession(saved);
-    if(restored.error){clearPersistedOwnerSession();await refreshAuth(null);}
-  }else await refreshAuth(null);
+    if(!restored.error&&isOwnerEmail(restored.data?.session)){
+      persistOwnerSession(restored.data.session);
+      await refreshAuth(restored.data.session);
+      return;
+    }
+    if(restored.error)clearPersistedOwnerSession();
+  }
+  await refreshAuth(currentSession);
 })();
 if(!adminPoll)adminPoll=setInterval(pollAdminActions,3500);
 async function refreshPublicState(){
