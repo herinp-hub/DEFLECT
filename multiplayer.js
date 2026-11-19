@@ -166,7 +166,8 @@ async function refreshAdminBans(){
 }
 async function issueAdminAction(targetUser,action,payload){
   try{
-    const result=await supabase.rpc("deflect_admin_action",{target_user:targetUser,action_name:action,action_payload:payload});
+    const actionPayload=action==="announce"?{...payload,authorName:String(playerName||"Admin").trim().slice(0,16)||"Admin"}:payload;
+    const result=await supabase.rpc("deflect_admin_action",{target_user:targetUser,action_name:action,action_payload:actionPayload});
     if(result.error){status("Action failed: "+result.error.message);return false;}
     status(action==="announce"?"Announcement sent to all players.":action==="event"?"Event started: "+String(payload?.event||"").replaceAll("_"," ").toUpperCase():action.toUpperCase()+" sent.");
     if(action==="unban")await refreshAdminBans();
@@ -198,7 +199,9 @@ async function pollAdminActions(){
       status(applied===false?"Event received but could not be applied on this client.":item.payload?.message||"ADMIN EVENT · "+item.action.toUpperCase());
     }else if(item.action==="announce"){
       const message=String(item.payload?.message||"ADMIN ANNOUNCEMENT");
-      bridge()?.showAnnouncement?.(message);status("ANNOUNCEMENT · "+message);
+      const author=String(item.payload?.authorName||"Admin");
+      const announcement="ANNOUNCEMENT · "+author+": "+message;
+      bridge()?.showAnnouncement?.(announcement);status(announcement);
     }
   }
   if(rows.length){const newest=rows.reduce((v,item)=>item.created_at>v?item.created_at:v,lastAdminCheck);if(newest>lastAdminCheck)lastAdminCheck=newest;}
