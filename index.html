@@ -53,19 +53,21 @@ orb.userData.vel=null;orb.position.set(29.5,19.2,-3.5);orbOwner=-1;targetId=-2;b
 islandHUD();applyArenaTheme();
 /* Rotate only the sky-lobby scene objects 90 degrees counterclockwise. */
 (function rotateSkyLobbyLeft(){
-  const lobbyPivot=new THREE.Group();
-  lobbyPivot.position.set(29.5,0,0);
-  scene.add(lobbyPivot);
+  const lobbyCenter=new THREE.Vector3(29.5,0,0);
   const lobbyRoots=scene.children.filter(object=>{
-    if(object===lobbyPivot||object===player||object===orb||object===camera)return false;
+    if(object===player||object===orb||object===camera)return false;
     const bounds=new THREE.Box3().setFromObject(object);
     if(bounds.isEmpty())return false;
     const center=bounds.getCenter(new THREE.Vector3());
-    const dx=center.x-29.5,dz=center.z;
-    return Math.hypot(dx,dz)<21;
+    return Math.hypot(center.x-lobbyCenter.x,center.z-lobbyCenter.z)<21;
   });
-  lobbyRoots.forEach(object=>lobbyPivot.attach(object));
-  lobbyPivot.rotation.y=Math.PI/2;
+  /* Rotate each lobby root in world space without reparenting it. This keeps
+     proximity checks and world-position references aligned with the scene. */
+  lobbyRoots.forEach(object=>{
+    const offset=object.position.clone().sub(lobbyCenter);
+    object.position.set(lobbyCenter.x+offset.z,offset.y,lobbyCenter.z-offset.x);
+    object.rotation.y+=Math.PI/2;
+  });
 })();
 /* Keep the training-area prompt pinned to the rotated training portal. */
 (function pinTrainingPromptToPortal(){
