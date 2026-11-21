@@ -70,8 +70,8 @@ islandHUD();applyArenaTheme();
 /* Keep the training-area prompt pinned to the rotated training portal. */
 (function pinTrainingPromptToPortal(){
  const prompt=document.getElementById("lobbyActionPrompt");
- const canvas=renderer&&renderer.domElement;
- if(!prompt||!canvas||!trainingDeck)return;
+ const canvas=typeof renderer!=="undefined"?renderer?.domElement:null;
+ if(!prompt||!canvas||typeof trainingDeck==="undefined"||!trainingDeck||typeof camera==="undefined")return;
  prompt.style.position="fixed";
  prompt.style.transform="translate(-50%,-50%)";
  const update=()=>{
