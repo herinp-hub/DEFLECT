@@ -45,7 +45,7 @@ const { chromium } = require('playwright');
       await page.locator('#deflectMp summary').click();
       await page.locator('#mpName').fill('TestPilot');
       await page.locator('#mpSaveName').click();
-      const savedName = await page.evaluate(() => ({stored:localStorage.getItem('deflectPlayerName'),active:window.__DEFLECT_MP_NAME__}));
+      const savedName = await page.evaluate(() => ({stored:sessionStorage.getItem('deflectPlayerName'),active:window.__DEFLECT_MP_NAME__}));
       if (savedName.stored !== 'TestPilot' || savedName.active !== 'TestPilot') throw new Error(`${viewport.name}: username did not save: ${JSON.stringify(savedName)}`);
       await page.locator('#mpCode').fill('ABC');
       await page.locator('#mpJoin').click();
