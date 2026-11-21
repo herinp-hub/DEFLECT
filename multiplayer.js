@@ -5,6 +5,23 @@ const bridge=()=>window.__DEFLECT_MP_BRIDGE__;
 const root=document.createElement("section");
 const style=document.createElement("style");
 style.textContent=`
+#deflectMapVote{position:fixed;z-index:115;left:50%;bottom:22px;transform:translateX(-50%);width:min(760px,calc(100vw - 28px));box-sizing:border-box;padding:14px;border:1px solid rgba(210,239,255,.34);border-radius:18px;background:rgba(12,22,35,.34);backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px) saturate(135%);box-shadow:0 18px 60px rgba(0,0,0,.22);color:#f5fbff;font:13px system-ui;display:none;pointer-events:auto}
+#deflectMapVote .mvHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+#deflectMapVote .mvTitle{font-weight:900;letter-spacing:.12em;font-size:12px}
+#deflectMapVote .mvTimer{font-size:24px;font-weight:900;font-variant-numeric:tabular-nums}
+#deflectMapVote .mvGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+#deflectMapVote .mvCard{min-width:0;border:1px solid rgba(220,244,255,.25);border-radius:12px;padding:9px;background:rgba(255,255,255,.075);color:#f5fbff;text-align:left;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+#deflectMapVote .mvCard:hover{background:rgba(255,255,255,.14);transform:translateY(-2px)}
+#deflectMapVote .mvCard.selected{border-color:#fff;background:rgba(180,225,255,.2);box-shadow:inset 0 0 0 1px #fff5}
+#deflectMapVote .mvPreview{height:54px;border-radius:8px;margin-bottom:8px;background:linear-gradient(145deg,#8cc9dc,#d9edf1 52%,#6d9db0);position:relative;overflow:hidden}
+#deflectMapVote .mvPreview:before{content:"";position:absolute;left:18%;right:18%;bottom:8px;height:17px;background:rgba(35,75,92,.55);clip-path:polygon(10% 0,90% 0,100% 100%,0 100%)}
+#deflectMapVote .mvPreview.frost{background:linear-gradient(145deg,#dcecf7,#7bb4d1 55%,#3f7898)}
+#deflectMapVote .mvPreview.ember{background:linear-gradient(145deg,#f1c18c,#b86d56 55%,#503f48)}
+#deflectMapVote .mvPreview.void{background:linear-gradient(145deg,#b9a1d8,#6c5b92 55%,#292640)}
+#deflectMapVote .mvName{font-weight:850;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#deflectMapVote .mvVotes{font-size:10px;color:#d3e6f1;margin-top:3px}
+#deflectMapVote .mvFoot{font-size:10px;color:#d2e3ed;margin-top:9px;text-align:center}
+@media(max-width:560px){#deflectMapVote{bottom:10px;padding:10px;border-radius:14px}#deflectMapVote .mvGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}#deflectMapVote .mvPreview{height:38px}#deflectMapVote .mvTimer{font-size:20px}}
 #deflectMp{position:fixed;z-index:120;left:14px;top:14px;width:min(440px,calc(100vw - 24px));color:#eafaff;font:13px system-ui}
 #deflectMp details{border:1px solid #78eaff88;border-radius:13px;background:rgba(4,16,35,.94);box-shadow:0 10px 35px #0008;overflow:hidden}
 #deflectMp summary{cursor:pointer;list-style:none;padding:11px 13px;font-weight:900;letter-spacing:.12em;color:#8feaff}
@@ -45,6 +62,7 @@ root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div c
 <div class="mpMuted">Start a round to sync player movement and the arena ball.</div>
 <div id="mpStatus" role="status" aria-live="polite">Ready</div></div></details>`;
 document.body.appendChild(root);
+const mapVoteRoot=document.createElement("section");mapVoteRoot.id="deflectMapVote";mapVoteRoot.setAttribute("aria-label","Map voting");mapVoteRoot.innerHTML=`<div class="mvHead"><div><div class="mvTitle">CHOOSE THE NEXT MAP</div><div style="font-size:10px;color:#d4e6ef;margin-top:3px">Vote before the countdown ends</div></div><div class="mvTimer" id="mvTimer">00:10</div></div><div class="mvGrid" id="mvGrid"></div><div class="mvFoot" id="mvFoot">Voting closes in 10 seconds</div>`;document.body.appendChild(mapVoteRoot);
 const $=id=>root.querySelector("#"+id);
 if(!cfg?.url||!cfg?.publishableKey){$("mpStatus").textContent="Supabase setup is missing.";throw new Error("DEFLECT Supabase config is missing");}
 const selfId=sessionStorage.getItem("deflectMpPlayerId")||crypto.randomUUID();sessionStorage.setItem("deflectMpPlayerId",selfId);
@@ -74,6 +92,8 @@ async function withButton(button,label,task){
   finally{button.disabled=false;button.classList.remove("mpBusy");button.textContent=original;}
 }
 let lastPresenceAlive=null;
+const MAP_VOTE_CHOICES=[{id:"classic",name:"CLASSIC ARENA",tone:"classic"},{id:"map_frost",name:"FROSTFALL",tone:"frost"},{id:"map_ember",name:"EMBER CORE",tone:"ember"},{id:"map_void",name:"VOID RIFT",tone:"void"}];
+let mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null},mapVoteClock=null,lastMapVoteSync=0;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
 
@@ -267,6 +287,43 @@ async function runAdminCommand(){
   status("Unknown command. Try /help.");
 }
 
+function renderMapVote(){
+  const state=bridge()?.getLocalState?.();
+  const visible=!!channel&&!!state?.lobbyMode&&!state?.alive&&!state?.roundOver&&mapVoteState.started&&!mapVoteState.resolved;
+  mapVoteRoot.style.display=visible?"block":"none";if(!visible)return;
+  const left=Math.max(0,Math.ceil((mapVoteState.endsAt-Date.now())/1000));
+  mapVoteRoot.querySelector("#mvTimer").textContent="00:"+String(left).padStart(2,"0");
+  const grid=mapVoteRoot.querySelector("#mvGrid");grid.replaceChildren();
+  const totals={};Object.values(mapVoteState.votes||{}).forEach(id=>{totals[id]=(totals[id]||0)+1;});
+  mapVoteState.maps.forEach(map=>{const card=document.createElement("button");card.type="button";card.className="mvCard"+(mapVoteState.selected===map.id?" selected":"");card.innerHTML='<div class="mvPreview '+map.tone+'"></div><div class="mvName"></div><div class="mvVotes"></div>';card.querySelector(".mvName").textContent=map.name;card.querySelector(".mvVotes").textContent=(totals[map.id]||0)+" votes";card.disabled=left<=0;card.onclick=()=>castMapVote(map.id);grid.appendChild(card);});
+  mapVoteRoot.querySelector("#mvFoot").textContent=mapVoteState.selected?"Your vote is counted · you can change it":"Choose one map · votes can be changed";
+}
+function applyMapVoteState(payload){
+  if(!payload||!Array.isArray(payload.maps))return;
+  mapVoteState={...mapVoteState,...payload,maps:payload.maps,votes:payload.votes||{}};
+  if(mapVoteState.resolved&&mapVoteState.winner){localStorage.setItem("deflectMap",mapVoteState.winner);mapVoteRoot.style.display="none";}
+  renderMapVote();
+}
+function castMapVote(mapId){
+  if(mapVoteState.resolved||!mapVoteState.maps.some(m=>m.id===mapId))return;
+  mapVoteState.selected=mapId;mapVoteState.votes={...mapVoteState.votes,[selfId]:mapId};send("map-vote-cast",{id:selfId,map:mapId});renderMapVote();
+}
+function beginMapVote(){
+  if(!channel||!isHost||mapVoteState.started||mapVoteState.resolved)return;
+  const payload={started:true,resolved:false,endsAt:Date.now()+10000,maps:MAP_VOTE_CHOICES,votes:{},selected:null,winner:null};
+  applyMapVoteState(payload);send("map-vote-start",payload);
+  clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>{renderMapVote();if(Date.now()>=mapVoteState.endsAt&&!mapVoteState.resolved){clearInterval(mapVoteClock);finishMapVote();}},100);
+}
+function finishMapVote(){
+  if(!isHost||mapVoteState.resolved)return;
+  const totals={};Object.values(mapVoteState.votes||{}).forEach(id=>{totals[id]=(totals[id]||0)+1;});
+  const high=Math.max(0,...mapVoteState.maps.map(m=>totals[m.id]||0));
+  const tied=mapVoteState.maps.filter(m=>(totals[m.id]||0)===high);
+  const winner=(tied.length?tied[Math.floor(Math.random()*tied.length)]:MAP_VOTE_CHOICES[0]).id;
+  const payload={...mapVoteState,resolved:true,winner};applyMapVoteState(payload);send("map-vote-result",payload);
+  mapVoteRoot.querySelector("#mvFoot").textContent="WINNER: "+(MAP_VOTE_CHOICES.find(m=>m.id===winner)?.name||winner)+" · Loading arena…";
+  setTimeout(()=>startMatch(),900);
+}
 function electHost(){
   const members=roomPlayers();
   const living=matchStarted?members.filter(p=>p.alive!==false):members;
@@ -290,7 +347,8 @@ function render(){
   // The room host starts the round once a second player is present. Previously
   // both clients waited for someone else to start, so neither ever launched an orb.
   const enoughPlayers=isPublicMatch?unique.length>=1:unique.length>=2;
-  if(enoughPlayers&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver)startMatch();
+  if(enoughPlayers&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver&&!mapVoteState.started&&!mapVoteState.resolved)beginMapVote();
+  renderMapVote();
 }
 function applyRemotePlayers(){
   const remote=[...players.entries()].map(([id,state])=>({id,state}));
@@ -298,7 +356,7 @@ function applyRemotePlayers(){
 }
 function startMatch(){
   const state=bridge()?.getLocalState?.();
-  if(state?.alive||matchStarted||!state?.lobbyMode||state?.roundOver)return;
+  if(!mapVoteState.resolved||state?.alive||matchStarted||!state?.lobbyMode||state?.roundOver)return;
   matchStarted=true;
   const game=bridge();
   if(typeof game?.startOnlineRound==="function"){
@@ -325,6 +383,7 @@ function startLoops(){
       lastStateSent=now;
       send("player-state",{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,state});
     }
+    if(isHost&&mapVoteState.started&&!mapVoteState.resolved&&now-lastMapVoteSync>1800){lastMapVoteSync=now;send("map-vote-sync",mapVoteState);}
     if(isHost&&now-lastOrbSent>100){
       lastOrbSent=now;
       send("orb-state",{state});
@@ -337,7 +396,7 @@ async function leave(){
   clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;clearInterval(publicStatePoll);publicStatePoll=null;matchStarted=false;lastAlive=false;
   const publicId=publicServerId,wasPublic=isPublicMatch;publicServerId=null;isPublicMatch=false;lastPresenceAlive=null;
   if(publicId&&publicPlayerId)await supabase.rpc("deflect_leave_public_server",{p_player_id:publicPlayerId});
-  const old=channel;channel=null;roomCode=null;players.clear();
+  const old=channel;channel=null;roomCode=null;players.clear();clearInterval(mapVoteClock);mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null};mapVoteRoot.style.display="none";
   bridge()?.setNetworkState(false,false,null,null);
   bridge()?.setRemotePlayers([]);
   if(wasPublic)bridge()?.setPublicBotCount?.(null);
@@ -355,7 +414,7 @@ async function join(raw,options={}){
     .on("broadcast",{event:"player-state"},({payload})=>{
       if(!payload?.id||payload.id===selfId||!payload.state)return;
       players.set(payload.id,{...payload.state,name:payload.name||"Player",role:payload.role||"player",userId:payload.userId||null});applyRemotePlayers();
-      if(payload.state.alive&&!bridge()?.getLocalState?.()?.alive)startMatch();
+      if(payload.state.alive&&!bridge()?.getLocalState?.()?.alive&&mapVoteState.resolved)startMatch();
     })
     .on("broadcast",{event:"orb-state"},({payload})=>{
       if(!isHost&&payload?.state)bridge()?.applySnapshot(payload.state);
@@ -369,6 +428,10 @@ async function join(raw,options={}){
       applyRemotePlayers();
       if(payload.id===selfId){bridge()?.applyNetworkElimination();status("ELIMINATED · room host confirmed the hit");}
     })
+    .on("broadcast",{event:"map-vote-start"},({payload})=>{if(payload?.started){applyMapVoteState(payload);clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>renderMapVote(),100);}})
+    .on("broadcast",{event:"map-vote-cast"},({payload})=>{if(isHost&&payload?.id&&mapVoteState.started&&!mapVoteState.resolved&&mapVoteState.maps.some(m=>m.id===payload.map)){mapVoteState.votes={...mapVoteState.votes,[payload.id]:payload.map};send("map-vote-sync",mapVoteState);renderMapVote();}})
+    .on("broadcast",{event:"map-vote-sync"},({payload})=>{if(!isHost&&payload?.started&&!mapVoteState.resolved)applyMapVoteState(payload);})
+    .on("broadcast",{event:"map-vote-result"},({payload})=>{applyMapVoteState(payload);})
     .on("broadcast",{event:"match-start"},({payload})=>{if(payload?.by!==selfId)startMatch()})
     .on("broadcast",{event:"host-eliminated"},({payload})=>{if(payload?.id&&payload.id!==selfId){const old=players.get(payload.id);if(old)players.set(payload.id,{...old,alive:false});applyRemotePlayers();status("HOST ELIMINATED · transferring host control");render();}});
   next.subscribe(async s=>{
