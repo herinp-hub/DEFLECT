@@ -300,7 +300,7 @@ function renderMapVote(){
 }
 function applyMapVoteState(payload){
   if(!payload||!Array.isArray(payload.maps))return;
-  mapVoteState={...mapVoteState,...payload,maps:payload.maps,votes:payload.votes||{}};
+  mapVoteState={...mapVoteState,...payload,maps:payload.maps,votes:payload.votes||{},selected:payload.votes?.[selfId]||mapVoteState.selected};
   if(mapVoteState.resolved&&mapVoteState.winner){localStorage.setItem("deflectMap",mapVoteState.winner);mapVoteRoot.style.display="none";}
   renderMapVote();
 }
