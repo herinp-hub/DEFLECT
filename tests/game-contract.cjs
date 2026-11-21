@@ -84,7 +84,12 @@ assert.ok((adminSql.match(/\$\$;/g)||[]).length >= 3, 'Admin SQL functions must 
 assert.ok(loader.includes('deflect:host-eliminated'), 'Host elimination must notify the multiplayer client');
 const multiplayerClient = fs.readFileSync(path.join(root, 'multiplayer.js'), 'utf8');
 assert.ok(loader.includes('startOnlineRound:'), 'Multiplayer must be able to start a round directly from the Sky Lobby');
-assert.ok(multiplayerClient.includes('unique.length>=2&&isHost&&!matchStarted'), 'Room host must start the round when a second player joins');
+assert.ok(multiplayerClient.includes('const enoughPlayers=isPublicMatch?unique.length>=1:unique.length>=2;'), 'Public servers must start with one human while private rooms wait for two');
+assert.ok(multiplayerClient.includes('deflect_public_server_state'), 'Public servers must refresh their live bot count');
+assert.ok(multiplayerClient.includes('setPublicBotCount'), 'Matchmaking must pass bot population into the game engine');
+assert.ok(loader.includes('__DEFLECT_PUBLIC_BOT_COUNT__'), 'Public server bot population must control round creation');
+assert.ok(loader.includes('mpRemoteTargetCode'), 'Public bots must be able to target real players');
+assert.ok(loader.includes('skill: 0.16 + Math.random() * 0.78'), 'Bots must spawn with varied skill levels');
 assert.ok(multiplayerClient.includes('game.startOnlineRound()'), 'Multiplayer start must use the direct lobby-to-round bridge');
 assert.ok(multiplayerClient.includes('send("host-eliminated"'), 'Host elimination must be broadcast to the room');
 assert.ok(multiplayerClient.includes('event:"host-eliminated"'), 'Room clients must handle host elimination');
