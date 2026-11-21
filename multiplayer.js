@@ -5,12 +5,12 @@ const bridge=()=>window.__DEFLECT_MP_BRIDGE__;
 const root=document.createElement("section");
 const style=document.createElement("style");
 style.textContent=`
-#deflectMp{position:fixed;z-index:120;left:14px;top:14px;width:min(310px,calc(100vw - 28px));color:#eafaff;font:12px system-ui}
+#deflectMp{position:fixed;z-index:120;left:14px;top:14px;width:min(380px,calc(100vw - 28px));color:#eafaff;font:13px system-ui}
 #deflectMp details{border:1px solid #78eaff88;border-radius:13px;background:rgba(4,16,35,.94);box-shadow:0 10px 35px #0008;overflow:hidden}
 #deflectMp summary{cursor:pointer;list-style:none;padding:11px 13px;font-weight:900;letter-spacing:.12em;color:#8feaff}
 #deflectMp summary::-webkit-details-marker{display:none}
 #deflectMp .mpBody{padding:0 12px 12px}
-#deflectMp input,#deflectMp button{box-sizing:border-box;width:100%;margin:4px 0;padding:9px;border-radius:8px;border:1px solid #78eaff77;background:#102b48;color:#f2fbff;font:700 11px system-ui}
+#deflectMp input,#deflectMp button{box-sizing:border-box;width:100%;margin:4px 0;padding:9px;border-radius:8px;border:1px solid #78eaff77;background:#102b48;color:#f2fbff;font:700 12px system-ui}
 #deflectMp button{cursor:pointer;background:linear-gradient(110deg,#12547a,#49317e);transition:transform .12s ease,filter .12s ease,box-shadow .12s ease}
 #deflectMp button:active{transform:translateY(2px) scale(.98);filter:brightness(1.3);box-shadow:0 0 0 2px #8feaff55}
 #deflectMp button:disabled{opacity:.55;cursor:wait}
@@ -32,7 +32,7 @@ style.textContent=`
 #deflectMp details[open]{display:flex;flex-direction:column;height:calc(100vh - 28px);height:calc(100dvh - 28px);max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px);overflow:hidden}
 #deflectMp details[open]>summary{flex:0 0 auto;position:relative;z-index:2;background:rgba(4,16,35,.98)}
 #deflectMp details[open]>.mpBody{display:block;flex:1 1 0;height:0;min-height:0;overflow-x:hidden;overflow-y:scroll;overscroll-behavior-y:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:auto;scrollbar-color:#4b9bb8 rgba(4,16,35,.35)}
-@media(max-width:600px){#deflectMp{width:min(190px,calc(100vw - 28px))}#deflectMp summary{font-size:9px;padding:9px 8px}}
+@media(max-width:600px){#deflectMp{width:min(360px,calc(100vw - 20px));font-size:13px}#deflectMp summary{font-size:12px;padding:11px 12px}#deflectMp input,#deflectMp button{font-size:12px}}
 `;
 document.head.appendChild(style);
 root.id="deflectMp";
