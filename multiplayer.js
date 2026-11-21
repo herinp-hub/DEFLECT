@@ -301,7 +301,7 @@ function renderMapVote(){
 function applyMapVoteState(payload){
   if(!payload||!Array.isArray(payload.maps))return;
   mapVoteState={...mapVoteState,...payload,maps:payload.maps,votes:payload.votes||{},selected:payload.votes?.[selfId]||mapVoteState.selected};
-  if(mapVoteState.resolved&&mapVoteState.winner){localStorage.setItem("deflectMap",mapVoteState.winner);mapVoteRoot.style.display="none";}
+  if(mapVoteState.resolved&&mapVoteState.winner){localStorage.setItem("deflectMap",mapVoteState.winner);mapVoteRoot.style.display="none";window.__DEFLECT_APPLY_ARENA_THEME__?.();window.dispatchEvent(new CustomEvent("deflect-map-applied",{detail:{map:mapVoteState.winner}}));}
   renderMapVote();
 }
 function castMapVote(mapId){
