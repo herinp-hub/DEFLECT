@@ -575,4 +575,4 @@ $("mpLeave").onclick=()=>{leave();status("You left the room.")};
 $("mpCode").onkeydown=e=>{if(e.key==="Enter")join($("mpCode").value)};
 window.addEventListener("pagehide",()=>{if(channel)supabase.removeChannel(channel)});
 // Automatically place every visitor into public matchmaking when DEFLECT loads.
-setTimeout(()=>{if(!channel&&!isPublicMatch)void joinPublic();},0);
+if(!new URLSearchParams(location.search).has("deflectTest"))setTimeout(()=>{if(!channel&&!isPublicMatch)void joinPublic();},0);
