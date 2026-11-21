@@ -28,11 +28,10 @@ style.textContent=`
 #deflectMp #mpStatus{min-height:16px;color:#8feaff;margin-top:5px}
 #deflectMp #mpHost{color:#ffc977;font-size:10px}
 
-/* Keep the multiplayer/admin console usable when its content exceeds the viewport. */
-#deflectMp details{display:flex;flex-direction:column;max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px)}
-#deflectMp summary{flex:0 0 auto;position:sticky;top:0;z-index:2;background:rgba(4,16,35,.98)}
-#deflectMp .mpBody{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#4b9bb8 rgba(4,16,35,.35)}
-
+/* Keep the open multiplayer/admin panel within the viewport and scroll its content. */
+#deflectMp details[open]{display:flex;flex-direction:column;height:calc(100vh - 28px);height:calc(100dvh - 28px);max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px);overflow:hidden}
+#deflectMp details[open]>summary{flex:0 0 auto;position:relative;z-index:2;background:rgba(4,16,35,.98)}
+#deflectMp details[open]>.mpBody{display:block;flex:1 1 0;height:0;min-height:0;overflow-x:hidden;overflow-y:scroll;overscroll-behavior-y:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:auto;scrollbar-color:#4b9bb8 rgba(4,16,35,.35)}
 @media(max-width:600px){#deflectMp{width:min(190px,calc(100vw - 28px))}#deflectMp summary{font-size:9px;padding:9px 8px}}
 `;
 document.head.appendChild(style);
