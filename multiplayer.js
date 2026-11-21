@@ -5,11 +5,11 @@ const bridge=()=>window.__DEFLECT_MP_BRIDGE__;
 const root=document.createElement("section");
 const style=document.createElement("style");
 style.textContent=`
-#deflectMp{position:fixed;z-index:120;left:14px;top:14px;width:min(380px,calc(100vw - 28px));color:#eafaff;font:13px system-ui}
+#deflectMp{position:fixed;z-index:120;left:14px;top:14px;width:min(440px,calc(100vw - 24px));color:#eafaff;font:13px system-ui}
 #deflectMp details{border:1px solid #78eaff88;border-radius:13px;background:rgba(4,16,35,.94);box-shadow:0 10px 35px #0008;overflow:hidden}
 #deflectMp summary{cursor:pointer;list-style:none;padding:11px 13px;font-weight:900;letter-spacing:.12em;color:#8feaff}
 #deflectMp summary::-webkit-details-marker{display:none}
-#deflectMp .mpBody{padding:0 12px 12px}
+#deflectMp .mpBody{box-sizing:border-box;padding:0 14px 16px}
 #deflectMp input,#deflectMp button{box-sizing:border-box;width:100%;margin:4px 0;padding:9px;border-radius:8px;border:1px solid #78eaff77;background:#102b48;color:#f2fbff;font:700 12px system-ui}
 #deflectMp button{cursor:pointer;background:linear-gradient(110deg,#12547a,#49317e);transition:transform .12s ease,filter .12s ease,box-shadow .12s ease}
 #deflectMp button:active{transform:translateY(2px) scale(.98);filter:brightness(1.3);box-shadow:0 0 0 2px #8feaff55}
@@ -20,7 +20,7 @@ style.textContent=`
 #deflectMp .mpRow{display:flex;gap:6px}
 #deflectMp .mpRow>*{min-width:0;flex:1}
 #deflectMp .mpMuted{color:#9dbbd1;font-size:10px}
-#deflectMp #mpPlayers{padding-left:17px;margin:6px 0}
+#deflectMp #mpPlayers{padding-left:17px;margin:6px 0}\n#deflectMp #mpAdmin{margin-top:12px!important;padding:14px!important;border:1px solid #ffc97799!important;border-radius:12px!important;background:linear-gradient(145deg,rgba(24,36,57,.98),rgba(5,19,39,.98));box-shadow:0 8px 24px #0005}\n#deflectMp #mpAdmin>b{display:block;font-size:16px;letter-spacing:.12em;padding-bottom:10px;margin-bottom:8px;border-bottom:1px solid #ffc97766}\n#deflectMp #mpAdminMembers{padding:10px;margin:8px 0;border:1px solid #78eaff44;border-radius:9px;background:#071a30}\n#deflectMp #mpEventTools,#deflectMp #mpBanTools,#deflectMp #mpStaffTools{padding:10px;margin-top:10px!important;border:1px solid #78eaff44;border-radius:9px;background:#071a30}\n#deflectMp #mpAdminAudit{padding:8px;margin-top:6px;border-radius:8px;background:#071a30}\n#deflectMp #mpAdmin button{min-height:38px}\n#deflectMp #mpAdmin input,#deflectMp #mpAdmin select{min-height:38px}
 #deflectMp .mpStaff{margin-top:9px;padding-top:8px;border-top:1px solid #78eaff44}
 #deflectMp .mpStaffList{display:grid;gap:5px;margin-top:7px}
 #deflectMp .mpStaffRow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -31,8 +31,8 @@ style.textContent=`
 /* Keep the open multiplayer/admin panel within the viewport and scroll its content. */
 #deflectMp details[open]{display:flex;flex-direction:column;height:calc(100vh - 28px);height:calc(100dvh - 28px);max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px);overflow:hidden}
 #deflectMp details[open]>summary{flex:0 0 auto;position:relative;z-index:2;background:rgba(4,16,35,.98)}
-#deflectMp details[open]>.mpBody{display:block;flex:1 1 0;height:0;min-height:0;overflow-x:hidden;overflow-y:scroll;overscroll-behavior-y:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:auto;scrollbar-color:#4b9bb8 rgba(4,16,35,.35)}
-@media(max-width:600px){#deflectMp{width:min(360px,calc(100vw - 20px));font-size:13px}#deflectMp summary{font-size:12px;padding:11px 12px}#deflectMp input,#deflectMp button{font-size:12px}}
+#deflectMp details[open]>.mpBody{display:block;flex:1 1 auto;height:auto;min-height:0;max-height:calc(100dvh - 58px);overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:auto;scrollbar-color:#4b9bb8 rgba(4,16,35,.35)}
+@media(max-width:600px){#deflectMp{width:min(400px,calc(100vw - 16px));font-size:13px}#deflectMp summary{font-size:12px;padding:11px 12px}#deflectMp input,#deflectMp button{font-size:12px}}
 `;
 document.head.appendChild(style);
 root.id="deflectMp";
