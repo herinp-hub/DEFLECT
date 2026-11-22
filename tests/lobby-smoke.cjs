@@ -28,6 +28,11 @@ const { chromium } = require('playwright');
       if (shopSupport !== true) throw new Error(`${viewport.name}: shop entrance has no walkable floor: ${JSON.stringify(geometry.shopFloor)}`);
       if (geometry.shopPath?.some(sample => !sample.supported)) throw new Error(`${viewport.name}: gap remains on shop approach: ${JSON.stringify(geometry.shopPath)}`);
       if (geometry.trainingPath?.some(sample => !sample.supported)) throw new Error(`${viewport.name}: gap remains on training approach: ${JSON.stringify(geometry.trainingPath)}`);
+      const beacons=(geometry.specialObjects||[]).filter(object=>object.geometry==='OctahedronGeometry');
+      for(const [name,z] of [['shop',-20],['training',20]]){
+        const beacon=beacons.find(object=>Math.abs(object.position[2]-z)<0.6);
+        if(!beacon||Math.abs(beacon.position[0]-29.5)>0.6||Math.abs(beacon.position[1]-21.1)>0.6)throw new Error(`${viewport.name}: ${name} beacon is not centered over its portal: ${JSON.stringify(beacons)}`);
+      }
 
       const trainingPosition = [geometry.training[0], 18.2, geometry.training[2]];
       const movedToTraining = await page.evaluate(position => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position, 0), trainingPosition);
@@ -35,6 +40,8 @@ const { chromium } = require('playwright');
       await page.waitForTimeout(250);
       const atTraining = await page.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLocalState().position);
       if (Math.hypot(atTraining[0] - trainingPosition[0], atTraining[2] - trainingPosition[2]) > 1.5) throw new Error(`${viewport.name}: training access was blocked; player=${JSON.stringify(atTraining)} training=${JSON.stringify(trainingPosition)}`);
+      const trainingPrompt=await page.evaluate(()=>{const p=document.getElementById('lobbyActionPrompt');return {display:getComputedStyle(p).display,action:p.dataset.action,text:p.textContent};});
+      if(trainingPrompt.action!=='training'||trainingPrompt.text!=='ENTER TRAINING ARENA')throw new Error(`${viewport.name}: training prompt is bound to the wrong area: ${JSON.stringify(trainingPrompt)}`);
 
       const shopPosition = [geometry.shop[0], 18.2, geometry.shop[2]];
       const movedToShop = await page.evaluate(position => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position, 0), shopPosition);
@@ -44,6 +51,8 @@ const { chromium } = require('playwright');
       if (Math.hypot(atShop[0] - shopPosition[0], atShop[2] - shopPosition[2]) > 1.5) {
         throw new Error(`${viewport.name}: shop access was blocked; player=${JSON.stringify(atShop)} shop=${JSON.stringify(shopPosition)}`);
       }
+      const shopPrompt=await page.evaluate(()=>{const p=document.getElementById('lobbyActionPrompt');return {display:getComputedStyle(p).display,action:p.dataset.action,text:p.textContent};});
+      if(shopPrompt.action!=='shop'||shopPrompt.text!=='OPEN ISLAND SHOP')throw new Error(`${viewport.name}: shop prompt is bound to the wrong area: ${JSON.stringify(shopPrompt)}`);
 
       const behindLobby = [29.5, 18.2, -40];
       const movedBehind = await page.evaluate(position => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position, 0), behindLobby);
