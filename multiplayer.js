@@ -83,6 +83,41 @@ $("mpName").value=playerName;
 let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,publicPlayerId=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,lastStaffRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
 let ownerRestorePromise=Promise.resolve();
 const status=s=>$("mpStatus").textContent=s;
+
+let sessionMonitorTimer=null,sessionMonitorBusy=false;
+function stopSessionMonitor(){if(sessionMonitorTimer){clearInterval(sessionMonitorTimer);sessionMonitorTimer=null;}}
+async function checkDevStudiosSession(){
+  if(sessionMonitorBusy||!authSession||authSession.user?.is_anonymous)return;
+  sessionMonitorBusy=true;
+  try{
+    const latest=await supabase.auth.getSession();
+    const session=latest.data?.session;
+    if(!session||session.user?.id!==authSession.user?.id)return;
+    const response=await fetch(cfg.url+"/functions/v1/dev-studios-session-check",{
+      method:"POST",
+      headers:{
+        "apikey":cfg.publishableKey,
+        "Authorization":"Bearer "+session.access_token,
+        "Content-Type":"application/json"
+      },
+      cache:"no-store"
+    });
+    if(response.status===409){
+      stopSessionMonitor();
+      await leave();
+      await supabase.auth.signOut({scope:"local"});
+      status("SIGNED OUT · this account was signed in on another browser. Sign in again here to continue.");
+    }
+  }catch(error){
+    console.warn("Session monitor temporarily unavailable:",error?.message||error);
+  }finally{sessionMonitorBusy=false;}
+}
+function startSessionMonitor(){
+  if(sessionMonitorTimer)return;
+  void checkDevStudiosSession();
+  sessionMonitorTimer=setInterval(checkDevStudiosSession,4000);
+}
+
 async function withButton(button,label,task){
   if(!button||button.disabled)return;
   const original=button.textContent;
@@ -101,6 +136,7 @@ async function refreshAuth(session){
   const nextPublicPlayerId=session?.user?.id||null;
   if(publicServerId&&publicPlayerId&&nextPublicPlayerId!==publicPlayerId)await leave();
   authSession=session||null;publicPlayerId=nextPublicPlayerId;currentRole="player";
+  if(authSession&&!authSession.user?.is_anonymous)startSessionMonitor();else stopSessionMonitor();
   if(authSession){
     if(!authSession.user.is_anonymous&&String(authSession.user.email||"").toLowerCase()==="herinppatel@gmail.com"){
       const claim=await supabase.rpc("deflect_claim_owner");
