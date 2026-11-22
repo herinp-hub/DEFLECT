@@ -40,5 +40,5 @@ jobs:
         if: github.ref == 'refs/heads/fix-lobby-portal-orb-positions'
         run: npm run test:lobby-smoke
       - name: Run full browser smoke checks
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix-waiting-for-orb-startup'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix-waiting-for-orb-startup' || github.head_ref == 'fix-waiting-for-orb-startup'
         run: npm run test:smoke
