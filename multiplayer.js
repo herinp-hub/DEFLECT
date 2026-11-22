@@ -400,6 +400,17 @@ function startLoops(){
     if(!channel)return;
     const now=performance.now(),b=bridge(),state=b?.getLocalState?.();
     if(!state)return;
+    // Keep matchmaking startup self-healing if a presence sync arrives before
+    // the room list is ready or a map-vote timer is interrupted.
+    if(state.lobbyMode&&!state.alive&&!state.roundOver&&!matchStarted){
+      const memberCount=roomPlayers().length;
+      const enoughPlayers=isPublicMatch?memberCount>=1:memberCount>=2;
+      if(enoughPlayers&&isHost){
+        if(!mapVoteState.started&&!mapVoteState.resolved)beginMapVote();
+        else if(mapVoteState.started&&!mapVoteState.resolved&&Date.now()>=mapVoteState.endsAt)finishMapVote();
+        else if(mapVoteState.resolved)startMatch();
+      }
+    }
     const aliveNow=!!state.alive;
     if(aliveNow!==lastPresenceAlive){lastPresenceAlive=aliveNow;void channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:aliveNow}});}
     if(state.alive&&!lastAlive){matchStarted=true;send("match-start",{by:selfId,at:Date.now()});}
