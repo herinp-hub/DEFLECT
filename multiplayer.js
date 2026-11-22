@@ -93,7 +93,7 @@ async function withButton(button,label,task){
 }
 let lastPresenceAlive=null;
 const MAP_VOTE_CHOICES=[{id:"classic",name:"CLASSIC ARENA",tone:"classic"},{id:"map_frost",name:"FROSTFALL",tone:"frost"},{id:"map_ember",name:"EMBER CORE",tone:"ember"},{id:"map_void",name:"VOID RIFT",tone:"void"}];
-let mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null},mapVoteClock=null,lastMapVoteSync=0;
+let mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null},mapVoteClock=null,lastMapVoteSync=0,lastRoundStartAttempt=0,mapVoteResolvedAt=0;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
 
@@ -325,6 +325,8 @@ function renderMapVote(){
 }
 function applyMapVoteState(payload){
   if(!payload||!Array.isArray(payload.maps))return;
+  if(payload.started&&!payload.resolved)mapVoteResolvedAt=0;
+  if(payload.resolved&&!mapVoteResolvedAt)mapVoteResolvedAt=Date.now();
   mapVoteState={...mapVoteState,...payload,maps:payload.maps,votes:payload.votes||{},selected:payload.votes?.[selfId]||mapVoteState.selected};
   if(mapVoteState.resolved&&mapVoteState.winner){localStorage.setItem("deflectMap",mapVoteState.winner);mapVoteRoot.style.display="none";window.__DEFLECT_APPLY_ARENA_THEME__?.();window.dispatchEvent(new CustomEvent("deflect-map-applied",{detail:{map:mapVoteState.winner}}));}
   renderMapVote();
@@ -337,7 +339,7 @@ function beginMapVote(){
   if(!channel||!isHost||mapVoteState.started||mapVoteState.resolved)return;
   const payload={started:true,resolved:false,endsAt:Date.now()+10000,maps:MAP_VOTE_CHOICES,votes:{},selected:null,winner:null};
   applyMapVoteState(payload);send("map-vote-start",payload);
-  clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>{renderMapVote();if(Date.now()>=mapVoteState.endsAt&&!mapVoteState.resolved){clearInterval(mapVoteClock);finishMapVote();}},100);
+  clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>{renderMapVote();if(isHost&&Date.now()>=mapVoteState.endsAt&&!mapVoteState.resolved){clearInterval(mapVoteClock);finishMapVote();}},100);
 }
 function finishMapVote(){
   if(!isHost||mapVoteState.resolved)return;
@@ -408,7 +410,8 @@ function startLoops(){
       lastStateSent=now;
       send("player-state",{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,state});
     }
-    if(isHost&&mapVoteState.started&&!mapVoteState.resolved&&now-lastMapVoteSync>1800){lastMapVoteSync=now;send("map-vote-sync",mapVoteState);}
+    if(isHost&&mapVoteState.started&&(!mapVoteState.resolved||Date.now()-mapVoteResolvedAt<15000)&&now-lastMapVoteSync>900){lastMapVoteSync=now;send("map-vote-sync",mapVoteState);}
+    if(isHost&&mapVoteState.resolved&&!matchStarted&&state.lobbyMode&&!state.alive&&now-lastRoundStartAttempt>1200){lastRoundStartAttempt=now;startMatch();}
     if(isHost&&now-lastOrbSent>100){
       lastOrbSent=now;
       send("orb-state",{state});
@@ -421,7 +424,7 @@ async function leave(){
   clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;clearInterval(publicStatePoll);publicStatePoll=null;matchStarted=false;lastAlive=false;
   const publicId=publicServerId,wasPublic=isPublicMatch;publicServerId=null;isPublicMatch=false;lastPresenceAlive=null;
   if(publicId&&publicPlayerId)await supabase.rpc("deflect_leave_public_server",{p_player_id:publicPlayerId});
-  const old=channel;channel=null;roomCode=null;players.clear();clearInterval(mapVoteClock);mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null};mapVoteRoot.style.display="none";
+  const old=channel;channel=null;roomCode=null;players.clear();clearInterval(mapVoteClock);mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null};mapVoteResolvedAt=0;lastRoundStartAttempt=0;mapVoteRoot.style.display="none";
   bridge()?.setNetworkState(false,false,null,null);
   bridge()?.setRemotePlayers([]);
   if(wasPublic)bridge()?.setPublicBotCount?.(null);
@@ -453,10 +456,10 @@ async function join(raw,options={}){
       applyRemotePlayers();
       if(payload.id===selfId){bridge()?.applyNetworkElimination();status("ELIMINATED · room host confirmed the hit");}
     })
-    .on("broadcast",{event:"map-vote-start"},({payload})=>{if(payload?.started){applyMapVoteState(payload);clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>renderMapVote(),100);}})
+    .on("broadcast",{event:"map-vote-start"},({payload})=>{if(payload?.started){applyMapVoteState(payload);clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>{renderMapVote();if(isHost&&Date.now()>=mapVoteState.endsAt&&!mapVoteState.resolved){clearInterval(mapVoteClock);finishMapVote();}},100);}})
     .on("broadcast",{event:"map-vote-cast"},({payload})=>{if(isHost&&payload?.id&&mapVoteState.started&&!mapVoteState.resolved&&mapVoteState.maps.some(m=>m.id===payload.map)){mapVoteState.votes={...mapVoteState.votes,[payload.id]:payload.map};send("map-vote-sync",mapVoteState);renderMapVote();}})
-    .on("broadcast",{event:"map-vote-sync"},({payload})=>{if(!isHost&&payload?.started&&!mapVoteState.resolved)applyMapVoteState(payload);})
-    .on("broadcast",{event:"map-vote-result"},({payload})=>{applyMapVoteState(payload);})
+    .on("broadcast",{event:"map-vote-sync"},({payload})=>{if(!isHost&&payload?.started){applyMapVoteState(payload);if(payload.resolved)startMatch();}})
+    .on("broadcast",{event:"map-vote-result"},({payload})=>{applyMapVoteState(payload);if(payload?.resolved)startMatch();})
     .on("broadcast",{event:"match-start"},({payload})=>{if(payload?.by!==selfId)startMatch()})
     .on("broadcast",{event:"host-eliminated"},({payload})=>{if(payload?.id&&payload.id!==selfId){const old=players.get(payload.id);if(old)players.set(payload.id,{...old,alive:false});applyRemotePlayers();status("HOST ELIMINATED · transferring host control");render();}});
   next.subscribe(async s=>{
