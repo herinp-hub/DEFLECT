@@ -2,7 +2,7 @@ name: DEFLECT browser smoke tests
 
 on:
   push:
-    branches: [main, fix-lobby-portal-orb-positions]
+    branches: [main, fix-lobby-portal-orb-positions, fix-waiting-for-orb-startup]
   pull_request:
     branches: [main]
   schedule:
@@ -40,5 +40,5 @@ jobs:
         if: github.ref == 'refs/heads/fix-lobby-portal-orb-positions'
         run: npm run test:lobby-smoke
       - name: Run full browser smoke checks
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix-waiting-for-orb-startup'
         run: npm run test:smoke
