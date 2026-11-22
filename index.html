@@ -57,8 +57,11 @@ islandHUD();applyArenaTheme();
   const lobbyRoots=scene.children.filter(object=>{
     if(object===player||object===orb||object===camera)return false;
     const bounds=new THREE.Box3().setFromObject(object);
-    if(bounds.isEmpty())return false;
-    const center=bounds.getCenter(new THREE.Vector3());
+    /* Some portal markers and trigger groups have no renderable geometry, so
+       Box3 is empty even though their world positions still drive interaction. */
+    const center=bounds.isEmpty()
+      ? object.getWorldPosition(new THREE.Vector3())
+      : bounds.getCenter(new THREE.Vector3());
     return Math.hypot(center.x-lobbyCenter.x,center.z-lobbyCenter.z)<21;
   });
   /* Rotate each lobby root in world space without reparenting it. This keeps
