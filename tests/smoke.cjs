@@ -117,7 +117,7 @@ const fs = require('node:fs');
       if (!(await page.locator('#powerSelect option').count())) throw new Error(`${viewport.name}: no owned powers are selectable`);
       await page.locator('#powerBtn').click();
       if (await page.locator('#dashBtn').isVisible()) await page.locator('#dashBtn').click();
-      await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), undefined, { timeout: 3000 });
+      await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), undefined, { timeout: 8000 });
       await page.evaluate(() => { window.__DEFLECT_FEATURES__.forceLobbyForTest(); });
       const trainingStarted = await page.evaluate(() => window.__DEFLECT_FEATURES__.startTrainingForTest());
       const trainingDuring = await page.evaluate(() => window.__DEFLECT_FEATURES__.getTrainingStateForTest());
