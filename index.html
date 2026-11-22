@@ -205,15 +205,6 @@ window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest=()=>{
     const b=new THREE.Box3().setFromObject(o);
     specialObjects.push({type:o.type,geometry:geometryType,name:o.name||'',parent:o.parent?.name||o.parent?.type||'',position:point(p),bounds:b.isEmpty()?null:{min:point(b.min),max:point(b.max)},scale:point(o.scale)});
   });
-  const nearbyMeshes=[];
-  scene.traverse(o=>{
-    if(!o.isMesh||!o.geometry)return;
-    const b=new THREE.Box3().setFromObject(o);
-    if(b.min.x>30.5||b.max.x<28.5||b.min.z>14||b.max.z<11||b.min.y>20||b.max.y<16)return;
-    const p=o.getWorldPosition(new THREE.Vector3());
-    const material=Array.isArray(o.material)?o.material[0]:o.material;
-    nearbyMeshes.push({name:o.name||'',geometry:o.geometry.type,parent:o.parent?.name||o.parent?.type||'',position:point(p),bounds:{min:point(b.min),max:point(b.max)},visible:o.visible,material:{type:material?.type||'',transparent:!!material?.transparent,opacity:material?.opacity??null,wireframe:!!material?.wireframe},userData:o.userData||{}});
-  });
   const portal=islandPortal.getWorldPosition(new THREE.Vector3());
   const training=trainingDeck.getWorldPosition(new THREE.Vector3());
   const shop=shopWing.getWorldPosition(new THREE.Vector3());
