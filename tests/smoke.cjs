@@ -182,10 +182,18 @@ const fs = require('node:fs');
     await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.startsWith('Connected'), undefined, { timeout: 20000 });
     console.log('TRACE multiplayer: both clients connected');
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => document.querySelectorAll('#mpPlayers li').length === 2, undefined, { timeout: 15000 })));
-    await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => {
-      const state=window.__DEFLECT_MP_BRIDGE__?.getLocalState?.();
-      return state?.alive===true&&!state?.lobbyMode&&state?.bots?.length>0;
-    }, undefined, { timeout: 15000 })));
+    await Promise.all([hostPage, guestPage].map(async peer => {
+      try {
+        await peer.waitForFunction(() => {
+          const state=window.__DEFLECT_MP_BRIDGE__?.getLocalState?.();
+          return state?.alive===true&&!state?.lobbyMode&&state?.bots?.length>0;
+        }, undefined, { timeout: 15000 });
+      } catch (error) {
+        const diagnostics=await peer.evaluate(()=>window.__DEFLECT_MP_DIAGNOSTICS__?.()||null);
+        console.log(`TRACE multiplayer startup timeout: ${JSON.stringify(diagnostics)}`);
+        throw error;
+      }
+    }));
     console.log('TRACE multiplayer: host auto-started arena for both lobby clients');
     await Promise.all([hostPage, guestPage].map(peer => peer.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getRemoteCount() > 0, undefined, { timeout: 15000 })));
     const hostIdForNames = await hostPage.evaluate(() => window.__DEFLECT_MP_SELF_ID__);
