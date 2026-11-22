@@ -24,8 +24,17 @@ const { chromium } = require('playwright');
         x: geometry.shop[0],
         z: geometry.shop[2]
       });
-      console.log(`TRACE ${viewport.name} shop=${JSON.stringify(geometry.shop)} supported=${shopSupport} specialObjects=${JSON.stringify(geometry.specialObjects)}`);
+      console.log(`TRACE ${viewport.name} shop=${JSON.stringify(geometry.shop)} supported=${shopSupport} shopPath=${JSON.stringify(geometry.shopPath)} trainingPath=${JSON.stringify(geometry.trainingPath)} bridge=${JSON.stringify(geometry.bridgeBounds)} specialObjects=${JSON.stringify(geometry.specialObjects)}`);
       if (shopSupport !== true) throw new Error(`${viewport.name}: shop entrance has no walkable floor: ${JSON.stringify(geometry.shopFloor)}`);
+      if (geometry.shopPath?.some(sample => !sample.supported)) throw new Error(`${viewport.name}: gap remains on shop approach: ${JSON.stringify(geometry.shopPath)}`);
+      if (geometry.trainingPath?.some(sample => !sample.supported)) throw new Error(`${viewport.name}: gap remains on training approach: ${JSON.stringify(geometry.trainingPath)}`);
+
+      const trainingPosition = [geometry.training[0], 18.2, geometry.training[2]];
+      const movedToTraining = await page.evaluate(position => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position, 0), trainingPosition);
+      if (!movedToTraining) throw new Error(`${viewport.name}: could not move test player to training entrance`);
+      await page.waitForTimeout(250);
+      const atTraining = await page.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLocalState().position);
+      if (Math.hypot(atTraining[0] - trainingPosition[0], atTraining[2] - trainingPosition[2]) > 1.5) throw new Error(`${viewport.name}: training access was blocked; player=${JSON.stringify(atTraining)} training=${JSON.stringify(trainingPosition)}`);
 
       const shopPosition = [geometry.shop[0], 18.2, geometry.shop[2]];
       const movedToShop = await page.evaluate(position => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position, 0), shopPosition);
