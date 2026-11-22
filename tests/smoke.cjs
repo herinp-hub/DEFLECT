@@ -61,6 +61,9 @@ const { chromium } = require('playwright');
       const lobbyGeometry = await page.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest());
       console.log(`TRACE lobby geometry ${viewport.name}: ${JSON.stringify(lobbyGeometry)}`);
       if (!lobbyGeometry || !Array.isArray(lobbyGeometry.roots) || !lobbyGeometry.shop) throw new Error(`${viewport.name}: lobby geometry diagnostics unavailable`);
+      const shopSupport = await page.evaluate(({x,z}) => window.__DEFLECT_MP_BRIDGE__.isLobbyPositionSupportedForTest(x,z), {x:lobbyGeometry.shop[0],z:lobbyGeometry.shop[2]});
+      console.log(`TRACE shop floor support ${viewport.name}: ${shopSupport}`);
+      if (shopSupport !== true) throw new Error(`${viewport.name}: shop wing has no walkable floor at its interaction anchor; geometry=${JSON.stringify(lobbyGeometry.shopFloor)}`);
       if (!lobbyProbe.menuHidden || !lobbyProbe.state.lobbyMode || lobbyProbe.state.alive || !lobbyProbe.startApi) {
         throw new Error(`${viewport.name}: direct-to-lobby startup failed: ${JSON.stringify(lobbyProbe)}`);
       }
