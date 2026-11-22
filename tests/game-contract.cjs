@@ -45,7 +45,9 @@ assert.ok(loader.includes('shopWing.getWorldPosition(new THREE.Vector3())'), 'Sh
 assert.ok(loader.includes('getLobbyPortalAnchorsForTest'), 'Rotated lobby anchors must be testable in browser diagnostics');
 assert.ok(loader.includes('isLobbyPositionSupportedForTest'), 'Lobby movement boundary must use real walkable floor support');
 assert.ok(loader.includes('getNormalMatrix(hit.object.matrixWorld)'), 'Lobby support checks must reject non-walkable vertical surfaces');
-assert.ok(loader.includes('!hit.object||excluded.has(hit.object)||!hit.face'), 'Lobby raycasts must safely skip invalid intersections');
+assert.ok(loader.includes('if(!object.isMesh||!object.geometry||!object.material)return;'), 'Lobby support must collect mesh surfaces only');
+assert.ok(loader.includes('intersectObjects(floorMeshes,false)'), 'Lobby support must use cached floor meshes instead of traversing sprites');
+assert.ok(loader.includes('intersectObjects(window.__DEFLECT_LOBBY_FLOOR_MESHES__||[],false)'), 'Lobby diagnostics must inspect the same cached floor meshes');
 assert.ok(loader.includes('lobbyCenter.x,center.z-lobbyCenter.z)<27'), 'Outer lobby portal props must be included in the scene rotation');
 assert.ok(!loader.includes('edgeRadius=19.25'), 'Lobby movement must not use the shop-blocking guessed circular boundary');
 
