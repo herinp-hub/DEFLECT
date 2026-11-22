@@ -106,10 +106,25 @@ trainingTargets.forEach(target=>{
 window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest=()=>{
   if(!location.search.includes('deflectTest=1'))return null;
   const point=v=>[+v.x.toFixed(3),+v.y.toFixed(3),+v.z.toFixed(3)];
+  const raycaster=new THREE.Raycaster();
+  const floorAt=(x,z)=>{
+    raycaster.set(new THREE.Vector3(x,40,z),new THREE.Vector3(0,-1,0));
+    const hits=raycaster.intersectObjects(scene.children,true)
+      .filter(h=>h.object!==player&&h.object!==orb&&h.point.y>10&&h.point.y<25)
+      .slice(0,6);
+    return hits.map(h=>({name:h.object.name||h.object.parent?.name||'',point:point(h.point),distance:+h.distance.toFixed(2),normal:point(h.face?.normal||new THREE.Vector3())}));
+  };
+  const roots=scene.children.filter(o=>o!==player&&o!==orb).map(o=>{
+    const b=new THREE.Box3().setFromObject(o),p=o.getWorldPosition(new THREE.Vector3());
+    return {name:o.name||o.type,position:point(p),bounds:b.isEmpty()?null:{min:point(b.min),max:point(b.max)},type:o.type};
+  }).filter(o=>Math.hypot(o.position[0]-29.5,o.position[2])<40);
+  const portal=islandPortal.getWorldPosition(new THREE.Vector3());
+  const training=trainingDeck.getWorldPosition(new THREE.Vector3());
+  const shop=shopWing.getWorldPosition(new THREE.Vector3());
   return {
-    portal:point(islandPortal.getWorldPosition(new THREE.Vector3())),
-    training:point(trainingDeck.getWorldPosition(new THREE.Vector3())),
-    shop:point(shopWing.getWorldPosition(new THREE.Vector3())),
+    portal:point(portal),training:point(training),shop:point(shop),
+    portalFloor:floorAt(portal.x,portal.z),trainingFloor:floorAt(training.x,training.z),shopFloor:floorAt(shop.x,shop.z),
+    player:point(player.position),roots,
     targets:trainingTargets.map(t=>({cached:point(t.position),actual:point(t.target.getWorldPosition(new THREE.Vector3()))}))
   };
 };
