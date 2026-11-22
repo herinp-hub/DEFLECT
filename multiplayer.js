@@ -206,9 +206,9 @@ function render(){
   applyRemotePlayers();
   renderAdminConsole();
   const state=bridge()?.getLocalState?.();
-  // The room host starts the round once a second player is present. Previously
-  // both clients waited for someone else to start, so neither ever launched an orb.
-  if(unique.length>=2&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver)startMatch();
+  // The room host starts the round as soon as at least one player is present.
+  // This supports solo play while still letting the first player host multiplayer rooms.
+  if(unique.length>=1&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver)startMatch();
 }
 function applyRemotePlayers(){
   const remote=[...players.entries()].map(([id,state])=>({id,state}));
