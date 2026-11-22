@@ -48,6 +48,19 @@ html=html.slice(0,initAt)+featureLayer+"\n"+html.slice(initAt);
 const bootAt=html.lastIndexOf("buildLevels();");
 if(bootAt<0)throw new Error("Game initialization hook missing");
 const directLobby=`
+/* Extend the original lobby clamp only along the narrow, walkable portal lane.
+   The source clamp capped the centre lane at 12.15 units, before either portal. */
+const __deflectBaseLobbyClamp=clampToLobby;
+clampToLobby=function(obj){
+ if(trainingMode){__deflectBaseLobbyClamp(obj);return;}
+ let lx=-(obj.position.x-29.5);
+ if(Math.abs(lx)>4.2){__deflectBaseLobbyClamp(obj);return;}
+ let lz=-obj.position.z;
+ lx=Math.max(-25.8,Math.min(25.8,lx));
+ lz=Math.max(-21.5,Math.min(21.5,lz));
+ obj.position.x=29.5-lx;
+ obj.position.z=-lz;
+};
 const startMenu=document.getElementById("menu");if(startMenu)startMenu.classList.add("hidden");
 const endMenu=document.getElementById("end");if(endMenu)endMenu.classList.add("hidden");
 if(player)scene.remove(player);
