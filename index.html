@@ -140,13 +140,22 @@ window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest=()=>{
     const b=new THREE.Box3().setFromObject(o),p=o.getWorldPosition(new THREE.Vector3());
     return {name:o.name||o.type,position:point(p),bounds:b.isEmpty()?null:{min:point(b.min),max:point(b.max)},type:o.type};
   }).filter(o=>Math.hypot(o.position[0]-29.5,o.position[2])<40);
+  const specialObjects=[];
+  scene.traverse(o=>{
+    const geometryType=o.geometry?.type||'';
+    if(!o.isSprite&&!/Sphere|Icosahedron|Octahedron|Dodecahedron|Tetrahedron/.test(geometryType))return;
+    const p=o.getWorldPosition(new THREE.Vector3());
+    if(Math.hypot(p.x-29.5,p.z)>35||p.y<12||p.y>28)return;
+    const b=new THREE.Box3().setFromObject(o);
+    specialObjects.push({type:o.type,geometry:geometryType,name:o.name||'',parent:o.parent?.name||o.parent?.type||'',position:point(p),bounds:b.isEmpty()?null:{min:point(b.min),max:point(b.max)},scale:point(o.scale)});
+  });
   const portal=islandPortal.getWorldPosition(new THREE.Vector3());
   const training=trainingDeck.getWorldPosition(new THREE.Vector3());
   const shop=shopWing.getWorldPosition(new THREE.Vector3());
   return {
     portal:point(portal),training:point(training),shop:point(shop),
     portalFloor:floorAt(portal.x,portal.z),trainingFloor:floorAt(training.x,training.z),shopFloor:floorAt(shop.x,shop.z),
-    player:point(player.position),roots,
+    player:point(player.position),roots,specialObjects,
     targets:trainingTargets.map(t=>({cached:point(t.position),actual:point(t.target.getWorldPosition(new THREE.Vector3()))}))
   };
 };
