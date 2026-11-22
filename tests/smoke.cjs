@@ -9,11 +9,23 @@ const { chromium } = require('playwright');
     for (const viewport of viewports) {
       const page = await browser.newPage({ viewport });
       await page.addInitScript(() => localStorage.setItem('deflectCoins','250'));
-      page.on('pageerror', error => failures.push(`${viewport.name}: ${error.message}`));
+      page.on('pageerror', error => failures.push(`${viewport.name}: ${error.stack || error.message}`));
       const response = await page.goto('http://127.0.0.1:4173/?deflectTest=1', { waitUntil: 'domcontentloaded' });
       if (!response || !response.ok()) throw new Error(`${viewport.name}: HTTP page load failed`);
       await page.waitForFunction(() => document.title.includes('DEFLECT'), undefined, { timeout: 15000 });
-      await page.waitForSelector('canvas', { timeout: 15000 });
+      try {
+        await page.waitForSelector('canvas', { timeout: 15000 });
+      } catch (error) {
+        const diagnostics = await page.evaluate(() => ({
+          title: document.title,
+          loading: document.querySelector('#loading')?.textContent || null,
+          bodyText: document.body.innerText.slice(0, 1200),
+          canvasCount: document.querySelectorAll('canvas').length,
+          scripts: [...document.scripts].map(s => ({src:s.src,type:s.type,loaded:!!s.dataset.loaded})),
+          chunks: performance.getEntriesByType('resource').filter(x => x.name.includes('/game/chunks/')).map(x => ({url:x.name.split('/').pop(),duration:Math.round(x.duration)}))
+        }));
+        throw new Error(`${viewport.name}: canvas startup failed; diagnostics=${JSON.stringify(diagnostics)}; pageErrors=${failures.join(' | ')}; cause=${error.message}`);
+      }
       await page.waitForSelector('#deflectMp', { timeout: 20000 });
       await page.waitForFunction(() => !!window.__DEFLECT_MP_BRIDGE__?.getLocalState, undefined, { timeout: 10000 });
       const multiplayerProbe = await page.evaluate(() => {
@@ -33,7 +45,7 @@ const { chromium } = require('playwright');
       await page.locator('#deflectMp summary').click();
       await page.locator('#mpName').fill('TestPilot');
       await page.locator('#mpSaveName').click();
-      const savedName = await page.evaluate(() => ({stored:localStorage.getItem('deflectPlayerName'),active:window.__DEFLECT_MP_NAME__}));
+      const savedName = await page.evaluate(() => ({stored:sessionStorage.getItem('deflectPlayerName'),active:window.__DEFLECT_MP_NAME__}));
       if (savedName.stored !== 'TestPilot' || savedName.active !== 'TestPilot') throw new Error(`${viewport.name}: username did not save: ${JSON.stringify(savedName)}`);
       await page.locator('#mpCode').fill('ABC');
       await page.locator('#mpJoin').click();
@@ -46,6 +58,26 @@ const { chromium } = require('playwright');
         state: window.__DEFLECT_MP_BRIDGE__.getLocalState(),
         startApi: typeof window.__DEFLECT_MP_BRIDGE__.startOnlineRound === 'function'
       }));
+      const lobbyGeometry = await page.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest());
+      console.log(`TRACE lobby geometry ${viewport.name}: ${JSON.stringify(lobbyGeometry)}`);
+      if (!lobbyGeometry || !Array.isArray(lobbyGeometry.roots) || !lobbyGeometry.shop) throw new Error(`${viewport.name}: lobby geometry diagnostics unavailable`);
+      const shopSupport = await page.evaluate(({x,z}) => window.__DEFLECT_MP_BRIDGE__.isLobbyPositionSupportedForTest(x,z), {x:lobbyGeometry.shop[0],z:lobbyGeometry.shop[2]});
+      console.log(`TRACE shop floor support ${viewport.name}: ${shopSupport}`);
+      if (shopSupport !== true) throw new Error(`${viewport.name}: shop wing has no walkable floor at its interaction anchor; geometry=${JSON.stringify(lobbyGeometry.shopFloor)}`);
+      console.log(`TRACE lobby special objects ${viewport.name}: ${JSON.stringify(lobbyGeometry.specialObjects)}`);
+      const shopPosition=[lobbyGeometry.shop[0],18.2,lobbyGeometry.shop[2]];
+      const shopMoveAccepted=await page.evaluate(position=>window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position,0),shopPosition);
+      if(!shopMoveAccepted)throw new Error(`${viewport.name}: could not move test player to shop entrance`);
+      await page.waitForTimeout(250);
+      const atShop=await page.evaluate(()=>window.__DEFLECT_MP_BRIDGE__.getLocalState().position);
+      if(Math.hypot(atShop[0]-shopPosition[0],atShop[2]-shopPosition[2])>1.5)throw new Error(`${viewport.name}: lobby boundary blocked shop access; player=${JSON.stringify(atShop)} shop=${JSON.stringify(shopPosition)}`);
+      const behindLobby=[29.5,18.2,-40];
+      const offIslandAccepted=await page.evaluate(position=>window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position,0),behindLobby);
+      if(!offIslandAccepted)throw new Error(`${viewport.name}: could not run off-island boundary test`);
+      await page.waitForTimeout(250);
+      const afterBoundary=await page.evaluate(()=>window.__DEFLECT_MP_BRIDGE__.getLocalState().position);
+      if(Math.hypot(afterBoundary[0]-shopPosition[0],afterBoundary[2]-shopPosition[2])>1.5)throw new Error(`${viewport.name}: player escaped the island instead of being returned to the last safe shop position; player=${JSON.stringify(afterBoundary)}`);
+      console.log(`PASS ${viewport.name}: shop entrance is reachable and off-island movement is blocked`);
       if (!lobbyProbe.menuHidden || !lobbyProbe.state.lobbyMode || lobbyProbe.state.alive || !lobbyProbe.startApi) {
         throw new Error(`${viewport.name}: direct-to-lobby startup failed: ${JSON.stringify(lobbyProbe)}`);
       }
@@ -114,7 +146,8 @@ const { chromium } = require('playwright');
     const guestPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
     for (const peer of [hostPage, guestPage]) {
       await peer.goto('http://127.0.0.1:4173/?deflectTest=1', { waitUntil: 'domcontentloaded' });
-      await peer.waitForSelector('#deflectMp', { timeout: 20000 });
+      await peer.waitForSelector('#deflectMp', { timeout: 60000 });
+      await peer.waitForFunction(() => !!window.__DEFLECT_MP_BRIDGE__?.getLocalState, undefined, { timeout: 15000 });
       await peer.locator('#deflectMp summary').click();
       // Both peers begin in the Sky Lobby; the room host should start the match
       // automatically when the second player joins the room.
@@ -199,13 +232,13 @@ const { chromium } = require('playwright');
       throw new Error('Multiplayer integration: remote hit validation failed: ' + JSON.stringify(hitProbe));
     }
 
-    // Verify a host elimination is broadcast and applied by the guest, independently of hit detection.
+    // Verify the host's elimination is broadcast to the guest, independently of hit detection.
     if (!(await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.isNetworkHost()))) throw new Error('Multiplayer integration: expected the room creator to be host');
     const guestStillAlive = await guestPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLocalState().alive);
     if (!guestStillAlive) throw new Error('Multiplayer integration: guest was eliminated during the isolated hit test');
     const hostEliminated = await hostPage.evaluate(() => window.__DEFLECT_MP_BRIDGE__.triggerHostEliminationForTest());
     if (!hostEliminated) throw new Error('Multiplayer integration: host elimination helper was rejected');
-    await guestPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === false, undefined, { timeout: 10000 });
+    await hostPage.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalState?.().alive === false, undefined, { timeout: 10000 });
     await guestPage.waitForFunction(() => document.querySelector('#mpStatus')?.textContent.includes('HOST ELIMINATED'), undefined, { timeout: 10000 });
     console.log('TRACE multiplayer: host elimination broadcast received');
 

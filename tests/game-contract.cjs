@@ -37,6 +37,19 @@ assert.ok(loader.includes('powerPulseUntil > performance.now() ? 6.2'), 'Pulse p
 assert.ok(loader.includes('targetId=-4'), 'Training target break must send the orb back to the player');
 assert.ok(loader.includes('RETURN CAUGHT — NEXT TARGET'), 'Training return must be caught before the next target launch');
 assert.ok(loader.includes('display:none!important'), 'Game should boot directly into the Sky Lobby');
+assert.ok(loader.includes('trainingTargets.forEach(target=>{'), 'Cached training target positions must be refreshed after lobby rotation');
+assert.ok(loader.includes('const lobbyTriggerStart=html.indexOf('), 'Lobby trigger patch must locate the original portal coordinates');
+assert.ok(loader.includes('islandPortal.getWorldPosition(new THREE.Vector3())'), 'Portal prompt must use the rotated portal world position');
+assert.ok(loader.includes('trainingDeck.getWorldPosition(new THREE.Vector3())'), 'Training interaction must use the rotated training deck world position');
+assert.ok(loader.includes('shopWing.getWorldPosition(new THREE.Vector3())'), 'Shop interaction must use the rotated shop wing world position');
+assert.ok(loader.includes('getLobbyPortalAnchorsForTest'), 'Rotated lobby anchors must be testable in browser diagnostics');
+assert.ok(loader.includes('isLobbyPositionSupportedForTest'), 'Lobby movement boundary must use real walkable floor support');
+assert.ok(loader.includes('getNormalMatrix(hit.object.matrixWorld)'), 'Lobby support checks must reject non-walkable vertical surfaces');
+assert.ok(loader.includes('if(!object.isMesh||!object.geometry||!object.material)return;'), 'Lobby support must collect mesh surfaces only');
+assert.ok(loader.includes('intersectObjects(floorMeshes,false)'), 'Lobby support must use cached floor meshes instead of traversing sprites');
+assert.ok(loader.includes('intersectObjects(window.__DEFLECT_LOBBY_FLOOR_MESHES__||[],false)'), 'Lobby diagnostics must inspect the same cached floor meshes');
+assert.ok(loader.includes('lobbyCenter.x,center.z-lobbyCenter.z)<27'), 'Outer lobby portal props must be included in the scene rotation');
+assert.ok(!loader.includes('edgeRadius=19.25'), 'Lobby movement must not use the shop-blocking guessed circular boundary');
 
 
 const html = zlib.gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8');
@@ -84,7 +97,12 @@ assert.ok((adminSql.match(/\$\$;/g)||[]).length >= 3, 'Admin SQL functions must 
 assert.ok(loader.includes('deflect:host-eliminated'), 'Host elimination must notify the multiplayer client');
 const multiplayerClient = fs.readFileSync(path.join(root, 'multiplayer.js'), 'utf8');
 assert.ok(loader.includes('startOnlineRound:'), 'Multiplayer must be able to start a round directly from the Sky Lobby');
-assert.ok(multiplayerClient.includes('unique.length>=2&&isHost&&!matchStarted'), 'Room host must start the round when a second player joins');
+assert.ok(multiplayerClient.includes('const enoughPlayers=isPublicMatch?unique.length>=1:unique.length>=2;'), 'Public servers must start with one human while private rooms wait for two');
+assert.ok(multiplayerClient.includes('deflect_public_server_state'), 'Public servers must refresh their live bot count');
+assert.ok(multiplayerClient.includes('setPublicBotCount'), 'Matchmaking must pass bot population into the game engine');
+assert.ok(loader.includes('__DEFLECT_PUBLIC_BOT_COUNT__'), 'Public server bot population must control round creation');
+assert.ok(loader.includes('mpRemoteTargetCode'), 'Public bots must be able to target real players');
+assert.ok(loader.includes('skill: 0.16 + Math.random() * 0.78'), 'Bots must spawn with varied skill levels');
 assert.ok(multiplayerClient.includes('game.startOnlineRound()'), 'Multiplayer start must use the direct lobby-to-round bridge');
 assert.ok(multiplayerClient.includes('send("host-eliminated"'), 'Host elimination must be broadcast to the room');
 assert.ok(multiplayerClient.includes('event:"host-eliminated"'), 'Room clients must handle host elimination');
@@ -94,3 +112,4 @@ assert.ok(multiplayerClient.includes('deflect_assign_role'), 'Owner role command
 
 
 console.log('PASS multiplayer client/config are wired into the game shell');
+
