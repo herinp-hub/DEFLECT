@@ -113,7 +113,7 @@ assert.ok(multiplayerClient.includes('deflect_assign_role'), 'Owner role command
 
 console.log('PASS multiplayer client/config are wired into the game shell');
 
-for (const term of ['lobbyMode','player.position.x','player.position.z','collision','collider','movePlayer','updatePlayer','Math.hypot','Box3','Raycaster']) {
+for (const term of ['lobbyMode','player.position.x','player.position.z','collision','collider','movePlayer','updatePlayer','Math.hypot','Box3','Raycaster','OctahedronGeometry','SphereGeometry','shopWing','trainingDeck','portalPrompt','trainingOrb','shopOrb']) {
   const snippets=[];
   let offset=0;
   while(snippets.length<5) {
