@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "test:smoke": "node tests/smoke.cjs",
-    "test:game-contract": "node tests/game-contract.cjs"
+    "test:game-contract": "node tests/game-contract.cjs",
+    "test:lobby-smoke": "node tests/lobby-smoke.cjs"
   },
   "devDependencies": {
     "playwright": "^1.56.1"
