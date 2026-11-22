@@ -384,15 +384,24 @@ function startMatch(){
   if(!mapVoteState.resolved||state?.alive||matchStarted||!state?.lobbyMode||state?.roundOver)return;
   matchStarted=true;
   const game=bridge();
-  if(typeof game?.startOnlineRound==="function"){
-    if(!game.startOnlineRound()){matchStarted=false;return;}
-  }else{
+  let started=false;
+  if(typeof game?.startOnlineRound==="function")started=game.startOnlineRound()===true;
+  let afterStart=bridge()?.getLocalState?.();
+  // The bridge can exist before the arena's start control is ready. If its
+  // start request does not move the game out of the lobby, retry through the
+  // same start button used by the normal UI instead of silently waiting.
+  if(!started&&afterStart?.lobbyMode&&!afterStart?.alive&&!afterStart?.roundOver){
     const button=document.getElementById("startBtn");
-    if(!button){matchStarted=false;return;}
-    button.click();
+    if(button&&!button.disabled)button.click();
+    afterStart=bridge()?.getLocalState?.();
   }
-  if(bridge()?.getLocalState?.()?.alive)status("Online round starting…");
-  else matchStarted=false;
+  if(afterStart?.alive||!afterStart?.lobbyMode){
+    matchStarted=true;
+    status("Online round starting…");
+  }else{
+    matchStarted=false;
+    status("Arena startup is retrying…");
+  }
 }
 function startLoops(){
   clearInterval(loops);
