@@ -36,4 +36,9 @@ jobs:
           done
           cat /tmp/deflect-server.log
           exit 1
-      - run: npm run test:smoke
+      - name: Run focused lobby smoke checks
+        if: github.ref == 'refs/heads/fix-lobby-portal-orb-positions'
+        run: npm run test:lobby-smoke
+      - name: Run full browser smoke checks
+        if: github.ref == 'refs/heads/main'
+        run: npm run test:smoke
