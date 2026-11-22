@@ -61,15 +61,23 @@ lobbyMode=true;alive=false;roundOver=false;wasAlive=false;trainingMode=false;
  let lastSafe=startPosition.clone();
  const raycaster=new THREE.Raycaster();
  raycaster.camera=camera;
+ const excludedRoots=[player,orb,...(Array.isArray(bots)?bots.map(bot=>bot.group):[])].filter(Boolean);
+ const floorMeshes=[];
+ scene.traverse(object=>{
+  if(!object.isMesh||!object.geometry||!object.material)return;
+  let parent=object;
+  while(parent){
+   if(excludedRoots.includes(parent))return;
+   parent=parent.parent;
+  }
+  floorMeshes.push(object);
+ });
+ window.__DEFLECT_LOBBY_FLOOR_MESHES__=floorMeshes;
  const isSupported=position=>{
   if(!scene||!player)return false;
   raycaster.set(position.clone().add(new THREE.Vector3(0,3.5,0)),new THREE.Vector3(0,-1,0));
-  const excluded=new Set();
-  player.traverse(object=>excluded.add(object));
-  if(orb)orb.traverse(object=>excluded.add(object));
-  if(Array.isArray(bots))bots.forEach(bot=>bot.group?.traverse(object=>excluded.add(object)));
-  return raycaster.intersectObjects(scene.children,true).some(hit=>{
-   if(!hit.object||excluded.has(hit.object)||!hit.face)return false;
+  return raycaster.intersectObjects(floorMeshes,false).some(hit=>{
+   if(!hit.face)return false;
    if(hit.point.y<position.y-2.2||hit.point.y>position.y+0.65)return false;
    const normal=hit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
    return normal.y>0.62;
@@ -123,8 +131,8 @@ window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest=()=>{
   raycaster.camera=camera;
   const floorAt=(x,z)=>{
     raycaster.set(new THREE.Vector3(x,40,z),new THREE.Vector3(0,-1,0));
-    const hits=raycaster.intersectObjects(scene.children,true)
-      .filter(h=>h.object&&h.object!==player&&h.object!==orb&&h.point.y>10&&h.point.y<25)
+    const hits=raycaster.intersectObjects(window.__DEFLECT_LOBBY_FLOOR_MESHES__||[],false)
+      .filter(h=>h.point.y>10&&h.point.y<25)
       .slice(0,6);
     return hits.map(h=>({name:h.object.name||h.object.parent?.name||'',point:point(h.point),distance:+h.distance.toFixed(2),normal:point(h.face?.normal||new THREE.Vector3())}));
   };
