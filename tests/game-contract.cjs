@@ -113,6 +113,18 @@ assert.ok(multiplayerClient.includes('deflect_assign_role'), 'Owner role command
 
 console.log('PASS multiplayer client/config are wired into the game shell');
 
+for (const term of ['lobbyActionPrompt','trainingDeck','shopWing']) {
+  const snippets=[];
+  let offset=0;
+  while(snippets.length<18) {
+    const index=html.indexOf(term,offset);
+    if(index<0)break;
+    snippets.push(html.slice(Math.max(0,index-160),Math.min(html.length,index+260)).replace(/\\s+/g,' '));
+    offset=index+term.length;
+  }
+  console.log('ALL SOURCE '+term+': '+JSON.stringify(snippets));
+}
+
 for (const term of ['lobbyMode','player.position.x','player.position.z','collision','collider','movePlayer','updatePlayer','Math.hypot','Box3','Raycaster','OctahedronGeometry','SphereGeometry','shopWing','trainingDeck','portalPrompt','lobbyActionPrompt','trainingOrb','shopOrb','trainingDeck.getWorldPosition','shopWing.getWorldPosition']) {
   const snippets=[];
   let offset=0;
