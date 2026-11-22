@@ -2,7 +2,7 @@ name: DEFLECT browser smoke tests
 
 on:
   push:
-    branches: [main, fix-lobby-portal-orb-positions]
+    branches: [main, fix-lobby-portal-orb-positions, fix-waiting-for-orb-startup]
   pull_request:
     branches: [main]
   schedule:
@@ -40,5 +40,13 @@ jobs:
         if: github.ref == 'refs/heads/fix-lobby-portal-orb-positions'
         run: npm run test:lobby-smoke
       - name: Run full browser smoke checks
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix-waiting-for-orb-startup' || github.head_ref == 'fix-waiting-for-orb-startup'
         run: npm run test:smoke
+      - name: Upload arena startup screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deflect-arena-startup-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 3

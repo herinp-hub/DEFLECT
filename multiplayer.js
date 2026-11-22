@@ -384,15 +384,24 @@ function startMatch(){
   if(!mapVoteState.resolved||state?.alive||matchStarted||!state?.lobbyMode||state?.roundOver)return;
   matchStarted=true;
   const game=bridge();
-  if(typeof game?.startOnlineRound==="function"){
-    if(!game.startOnlineRound()){matchStarted=false;return;}
-  }else{
+  let started=false;
+  if(typeof game?.startOnlineRound==="function")started=game.startOnlineRound()===true;
+  let afterStart=bridge()?.getLocalState?.();
+  // The bridge can exist before the arena's start control is ready. If its
+  // start request does not move the game out of the lobby, retry through the
+  // same start button used by the normal UI instead of silently waiting.
+  if(!started&&afterStart?.lobbyMode&&!afterStart?.alive&&!afterStart?.roundOver){
     const button=document.getElementById("startBtn");
-    if(!button){matchStarted=false;return;}
-    button.click();
+    if(button&&!button.disabled)button.click();
+    afterStart=bridge()?.getLocalState?.();
   }
-  if(bridge()?.getLocalState?.()?.alive)status("Online round starting…");
-  else matchStarted=false;
+  if(afterStart?.alive||!afterStart?.lobbyMode){
+    matchStarted=true;
+    status("Online round starting…");
+  }else{
+    matchStarted=false;
+    status("Arena startup is retrying…");
+  }
 }
 function startLoops(){
   clearInterval(loops);
@@ -400,6 +409,17 @@ function startLoops(){
     if(!channel)return;
     const now=performance.now(),b=bridge(),state=b?.getLocalState?.();
     if(!state)return;
+    // Keep matchmaking startup self-healing if a presence sync arrives before
+    // the room list is ready or a map-vote timer is interrupted.
+    if(state.lobbyMode&&!state.alive&&!state.roundOver&&!matchStarted){
+      const memberCount=roomPlayers().length;
+      const enoughPlayers=isPublicMatch?memberCount>=1:memberCount>=2;
+      if(enoughPlayers&&isHost){
+        if(!mapVoteState.started&&!mapVoteState.resolved)beginMapVote();
+        else if(mapVoteState.started&&!mapVoteState.resolved&&Date.now()>=mapVoteState.endsAt)finishMapVote();
+        else if(mapVoteState.resolved)startMatch();
+      }
+    }
     const aliveNow=!!state.alive;
     if(aliveNow!==lastPresenceAlive){lastPresenceAlive=aliveNow;void channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:aliveNow}});}
     if(state.alive&&!lastAlive){matchStarted=true;send("match-start",{by:selfId,at:Date.now()});}
@@ -456,7 +476,7 @@ async function join(raw,options={}){
     .on("broadcast",{event:"map-vote-start"},({payload})=>{if(payload?.started){applyMapVoteState(payload);clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>renderMapVote(),100);}})
     .on("broadcast",{event:"map-vote-cast"},({payload})=>{if(isHost&&payload?.id&&mapVoteState.started&&!mapVoteState.resolved&&mapVoteState.maps.some(m=>m.id===payload.map)){mapVoteState.votes={...mapVoteState.votes,[payload.id]:payload.map};send("map-vote-sync",mapVoteState);renderMapVote();}})
     .on("broadcast",{event:"map-vote-sync"},({payload})=>{if(!isHost&&payload?.started&&!mapVoteState.resolved)applyMapVoteState(payload);})
-    .on("broadcast",{event:"map-vote-result"},({payload})=>{applyMapVoteState(payload);})
+    .on("broadcast",{event:"map-vote-result"},({payload})=>{applyMapVoteState(payload);if(payload?.resolved)setTimeout(()=>startMatch(),900);})
     .on("broadcast",{event:"match-start"},({payload})=>{if(payload?.by!==selfId)startMatch()})
     .on("broadcast",{event:"host-eliminated"},({payload})=>{if(payload?.id&&payload.id!==selfId){const old=players.get(payload.id);if(old)players.set(payload.id,{...old,alive:false});applyRemotePlayers();status("HOST ELIMINATED · transferring host control");render();}});
   next.subscribe(async s=>{
@@ -490,6 +510,7 @@ async function join(raw,options={}){
     }
   });
 }
+window.__DEFLECT_MP_DIAGNOSTICS__=()=>({channel:!!channel,roomCode,isHost,matchStarted,isPublicMatch,playerCount:roomPlayers().length,mapVoteState:{...mapVoteState},mapVoteClock:!!mapVoteClock,localState:bridge()?.getLocalState?.()||null});
 window.addEventListener("deflect:host-eliminated",()=>{if(channel&&isHost)send("host-eliminated",{id:selfId});});
 window.addEventListener("deflect:request",event=>{
   const state=event.detail||{},p=state.position;
