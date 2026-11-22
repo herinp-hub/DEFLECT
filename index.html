@@ -215,7 +215,7 @@ window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest=()=>{
   return {
     portal:point(portal),training:point(training),shop:point(shop),
     portalFloor:floorAt(portal.x,portal.z),trainingFloor:floorAt(training.x,training.z),shopFloor:floorAt(shop.x,shop.z),
-    shopPath,trainingPath,bridgeBounds:bridgeBox?{min:point(bridgeBox.min),max:point(bridgeBox.max)}:null,nearbyMeshes,
+    shopPath,trainingPath,bridgeBounds:bridgeBox?{min:point(bridgeBox.min),max:point(bridgeBox.max)}:null,
     player:point(player.position),roots,specialObjects,
     targets:trainingTargets.map(t=>({cached:point(t.position),actual:point(t.target.getWorldPosition(new THREE.Vector3()))}))
   };
