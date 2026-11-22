@@ -58,6 +58,9 @@ const { chromium } = require('playwright');
         state: window.__DEFLECT_MP_BRIDGE__.getLocalState(),
         startApi: typeof window.__DEFLECT_MP_BRIDGE__.startOnlineRound === 'function'
       }));
+      const lobbyGeometry = await page.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest());
+      console.log(`TRACE lobby geometry ${viewport.name}: ${JSON.stringify(lobbyGeometry)}`);
+      if (!lobbyGeometry || !Array.isArray(lobbyGeometry.roots) || !lobbyGeometry.shop) throw new Error(`${viewport.name}: lobby geometry diagnostics unavailable`);
       if (!lobbyProbe.menuHidden || !lobbyProbe.state.lobbyMode || lobbyProbe.state.alive || !lobbyProbe.startApi) {
         throw new Error(`${viewport.name}: direct-to-lobby startup failed: ${JSON.stringify(lobbyProbe)}`);
       }
