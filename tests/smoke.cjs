@@ -61,8 +61,6 @@ const { chromium } = require('playwright');
       if (!lobbyProbe.menuHidden || !lobbyProbe.state.lobbyMode || lobbyProbe.state.alive || !lobbyProbe.startApi) {
         throw new Error(`${viewport.name}: direct-to-lobby startup failed: ${JSON.stringify(lobbyProbe)}`);
       }
-      const lobbySceneDebug = await page.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLobbySceneDebugForTest?.());
-      console.log('TRACE lobby scene objects '+JSON.stringify(lobbySceneDebug));
       const roundStarted = await page.evaluate(() => window.__DEFLECT_MP_BRIDGE__.startOnlineRound());
       if (!roundStarted) throw new Error(`${viewport.name}: arena did not start from the Sky Lobby`);
       await page.waitForFunction(() => {
