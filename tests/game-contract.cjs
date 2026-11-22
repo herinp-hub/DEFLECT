@@ -37,6 +37,12 @@ assert.ok(loader.includes('powerPulseUntil > performance.now() ? 6.2'), 'Pulse p
 assert.ok(loader.includes('targetId=-4'), 'Training target break must send the orb back to the player');
 assert.ok(loader.includes('RETURN CAUGHT — NEXT TARGET'), 'Training return must be caught before the next target launch');
 assert.ok(loader.includes('display:none!important'), 'Game should boot directly into the Sky Lobby');
+assert.ok(loader.includes('trainingTargets.forEach(target=>{'), 'Cached training target positions must be refreshed after lobby rotation');
+assert.ok(loader.includes('const lobbyTriggerStart=html.indexOf('), 'Lobby trigger patch must locate the original portal coordinates');
+assert.ok(loader.includes('islandPortal.getWorldPosition(new THREE.Vector3())'), 'Portal prompt must use the rotated portal world position');
+assert.ok(loader.includes('trainingDeck.getWorldPosition(new THREE.Vector3())'), 'Training interaction must use the rotated training deck world position');
+assert.ok(loader.includes('shopWing.getWorldPosition(new THREE.Vector3())'), 'Shop interaction must use the rotated shop wing world position');
+assert.ok(loader.includes('getLobbyPortalAnchorsForTest'), 'Rotated lobby anchors must be testable in browser diagnostics');
 
 
 const html = zlib.gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8');
