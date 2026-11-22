@@ -157,6 +157,24 @@ islandHUD();applyArenaTheme();
  scene.add(bridge);
  window.__DEFLECT_LOBBY_FLOOR_MESHES__?.push(bridge);
 })();
+/* Put the two floating crystal beacons directly above their matching portal
+   decks. Their old offsets pointed away from the actual shop/training areas. */
+(function alignLobbyPortalBeacons(){
+ const trainingAnchor=trainingDeck.getWorldPosition(new THREE.Vector3());
+ const shopAnchor=shopWing.getWorldPosition(new THREE.Vector3());
+ trainingAnchor.y=21.1;
+ shopAnchor.y=21.1;
+ scene.traverse(object=>{
+  if(!object.isMesh||object.geometry?.type!=='OctahedronGeometry')return;
+  const current=object.getWorldPosition(new THREE.Vector3());
+  if(Math.abs(current.x-35.5)>1||Math.abs(Math.abs(current.z)-25)>1||Math.abs(current.y-21.1)>1)return;
+  const target=current.z>0?trainingAnchor:shopAnchor;
+  object.parent?.updateWorldMatrix(true,false);
+  object.position.copy(object.parent?object.parent.worldToLocal(target.clone()):target);
+  object.userData.portalBeacon=current.z>0?'training':'shop';
+  object.updateMatrixWorld(true);
+ });
+})();
 
 /* Re-sync cached training target positions after the island's world rotation. */
 trainingTargets.forEach(target=>{
