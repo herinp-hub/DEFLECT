@@ -143,6 +143,31 @@ async function refreshStaffManager(force=false){
   }
 }
 
+const DEV_STUDIOS_ORIGIN = "https://devstudios-mauve.vercel.app";
+window.addEventListener("message", async (event) => {
+  if (event.origin !== DEV_STUDIOS_ORIGIN) return;
+  if (event.source !== window.opener && event.source !== window.parent) return;
+  if (event.data?.type !== "DEV_STUDIOS_AUTH") return;
+  const incoming = event.data.session;
+  if (!incoming || typeof incoming.access_token !== "string" || typeof incoming.refresh_token !== "string") return;
+  const result = await supabase.auth.setSession({
+    access_token: incoming.access_token,
+    refresh_token: incoming.refresh_token
+  });
+  if (result.error) {
+    status("Dev Studios sign-in could not be completed: " + result.error.message);
+    return;
+  }
+  await refreshAuth(result.data.session);
+  status("Signed in with your Dev Studios account.");
+});
+if (window.opener && window.opener !== window) {
+  window.opener.postMessage({ type: "DEFLECT_READY" }, DEV_STUDIOS_ORIGIN);
+}
+if (window.parent && window.parent !== window) {
+  window.parent.postMessage({ type: "DEFLECT_READY" }, DEV_STUDIOS_ORIGIN);
+}
+
 function renderAdminConsole(){
   const panel=$("mpAdmin"),list=$("mpAdminMembers");
   const canAdmin=["owner","co_owner","admin","moderator"].includes(currentRole);
