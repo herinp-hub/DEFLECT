@@ -92,6 +92,7 @@ islandHUD();applyArenaTheme();
  };
  requestAnimationFrame(update);
 })();
+window.__DEFLECT_MP_BRIDGE__.getLobbySceneDebugForTest=()=>{if(!location.search.includes('deflectTest=1'))return null;const rows=[];scene.traverse(o=>{const p=o.getWorldPosition(new THREE.Vector3());if(Math.hypot(p.x-29.5,p.z)<30)rows.push({name:o.name||"",type:o.type,world:[+p.x.toFixed(2),+p.y.toFixed(2),+p.z.toFixed(2)],local:[+o.position.x.toFixed(2),+o.position.y.toFixed(2),+o.position.z.toFixed(2)],parent:o.parent?.name||o.parent?.type||"",visible:o.visible,geometry:!!o.geometry,children:o.children.length});});return rows;};
 const skyHud=document.getElementById("islandHud");if(skyHud)skyHud.style.display="block";
 const mainMenuButton=skyHud&&skyHud.querySelector("#lobbyPortal");if(mainMenuButton)mainMenuButton.remove();
 const skyStatus=document.getElementById("islandStatus");if(skyStatus)skyStatus.textContent="WELCOME TO THE SKY LOBBY — EXPLORE THE HUB";
