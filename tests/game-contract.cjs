@@ -98,6 +98,10 @@ assert.ok(loader.includes('deflect:host-eliminated'), 'Host elimination must not
 const multiplayerClient = fs.readFileSync(path.join(root, 'multiplayer.js'), 'utf8');
 assert.ok(loader.includes('startOnlineRound:'), 'Multiplayer must be able to start a round directly from the Sky Lobby');
 assert.ok(multiplayerClient.includes('const enoughPlayers=isPublicMatch?unique.length>=1:unique.length>=2;'), 'Public servers must start with one human while private rooms wait for two');
+assert.ok(multiplayerClient.includes('if(payload?.started){applyMapVoteState(payload);if(payload.resolved)startMatch();}'), 'Clients must recover if the one-time map result broadcast is missed');
+assert.ok(multiplayerClient.includes('Date.now()-mapVoteResolvedAt<15000'), 'Host must repeat the resolved map state so clients can recover from missed broadcasts');
+assert.ok(multiplayerClient.includes('lastRoundStartAttempt>1200'), 'Host must retry starting the round after a transient startup failure');
+assert.ok(multiplayerClient.includes('if(isHost&&Date.now()>=mapVoteState.endsAt&&!mapVoteState.resolved)'), 'A newly elected host must be able to finish an abandoned map vote');
 assert.ok(multiplayerClient.includes('deflect_public_server_state'), 'Public servers must refresh their live bot count');
 assert.ok(multiplayerClient.includes('setPublicBotCount'), 'Matchmaking must pass bot population into the game engine');
 assert.ok(loader.includes('__DEFLECT_PUBLIC_BOT_COUNT__'), 'Public server bot population must control round creation');
