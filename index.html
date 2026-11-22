@@ -61,6 +61,25 @@ lobbyMode=true;alive=false;roundOver=false;wasAlive=false;trainingMode=false;
  let lastSafe=startPosition.clone();
  const raycaster=new THREE.Raycaster();
  raycaster.camera=camera;
+ /* The shop platform had floor under its anchor but no continuous path from
+    the main island. Add a matching walkable bridge over that gap. */
+ raycaster.set(new THREE.Vector3(29.5,40,-20),new THREE.Vector3(0,-1,0));
+ const shopFloorHit=raycaster.intersectObjects(scene.children,true)
+  .filter(hit=>hit.object?.isMesh&&hit.face&&hit.point.y>17.5&&hit.point.y<18.5)
+  .map(hit=>({hit,normal:hit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize()}))
+  .filter(item=>item.normal.y>0.62)
+  .sort((a,b)=>a.hit.point.y-b.hit.point.y)[0]?.hit;
+ const shopFloorMaterial=shopFloorHit
+  ?(Array.isArray(shopFloorHit.object.material)?shopFloorHit.object.material[shopFloorHit.face.materialIndex||0]:shopFloorHit.object.material)
+  :null;
+ const shopBridge=new THREE.Mesh(
+  new THREE.BoxGeometry(8,0.36,9),
+  shopFloorMaterial?.clone?.()||new THREE.MeshStandardMaterial({color:0x283449,roughness:0.92})
+ );
+ shopBridge.name='lobbyShopBridge';
+ shopBridge.position.set(29.5,17.79,-16.25);
+ shopBridge.receiveShadow=true;
+ scene.add(shopBridge);
  const excludedRoots=[player,orb,...(Array.isArray(bots)?bots.map(bot=>bot.group):[])].filter(Boolean);
  const floorMeshes=[];
  scene.traverse(object=>{
