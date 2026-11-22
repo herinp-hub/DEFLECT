@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const fs = require('node:fs');
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
@@ -88,6 +89,23 @@ const { chromium } = require('playwright');
         return state?.alive && !state?.lobbyMode && state?.bots?.length > 0;
       }, undefined, { timeout: 10000 });
       await page.waitForTimeout(2000);
+      fs.mkdirSync('artifacts', { recursive: true });
+      const sceneDiagnostics = await page.evaluate(() => {
+        const canvas = document.querySelector('canvas');
+        const rect = canvas?.getBoundingClientRect();
+        const gl = canvas?.getContext('webgl2') || canvas?.getContext('webgl');
+        const state = window.__DEFLECT_MP_BRIDGE__?.getLocalState?.();
+        return {
+          canvas: canvas ? { width: canvas.width, height: canvas.height, cssWidth: rect?.width, cssHeight: rect?.height } : null,
+          webgl: !!gl,
+          glError: gl ? gl.getError() : null,
+          state: state ? { alive: state.alive, lobbyMode: state.lobbyMode, position: state.position, orbPosition: state.orbPosition, bots: state.bots?.length } : null,
+          bodyBackground: getComputedStyle(document.body).backgroundColor,
+          canvasBackground: canvas ? getComputedStyle(canvas).backgroundColor : null
+        };
+      });
+      console.log(`TRACE arena scene ${viewport.name}: ${JSON.stringify(sceneDiagnostics)}`);
+      await page.screenshot({ path: `artifacts/arena-${viewport.name}.png`, fullPage: false });
       await page.waitForFunction(() => window.__DEFLECT_MP_BRIDGE__?.getLocalNameForTest?.() === 'TestPilot', undefined, { timeout: 5000 });
       const eventProbe = await page.evaluate(() => {const b=window.__DEFLECT_MP_BRIDGE__;return {giant:b.applyAdminEvent('giant_orb'),double:b.applyAdminEvent('double_rewards'),meteor:b.applyAdminEvent('meteor_shower'),invalid:b.applyAdminEvent('not_a_real_event')};});
       if (!eventProbe.giant || !eventProbe.double || !eventProbe.meteor || eventProbe.invalid) throw new Error(`${viewport.name}: admin event validation failed: ${JSON.stringify(eventProbe)}`);
