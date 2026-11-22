@@ -11,6 +11,7 @@ Run a static server (for example, `python3 -m http.server 8000`) and open `http:
 - Training target positioning uses the visible core's world-space position.
 - The training hit radius is adjusted to match the visible target.
 - A training miss exits practice mode and returns the player to the lobby, including clearing a temporary shield.
+- Sky Lobby movement is constrained by ray-tested walkable floor support, and the rotated lobby includes outer portal props.
 - Browser smoke tests exercise training start/stop, mobile and desktop gameplay, player name tags, and the feature vault.
 
 ## Online multiplayer preview
