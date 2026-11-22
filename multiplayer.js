@@ -456,7 +456,7 @@ async function join(raw,options={}){
     .on("broadcast",{event:"map-vote-start"},({payload})=>{if(payload?.started){applyMapVoteState(payload);clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>renderMapVote(),100);}})
     .on("broadcast",{event:"map-vote-cast"},({payload})=>{if(isHost&&payload?.id&&mapVoteState.started&&!mapVoteState.resolved&&mapVoteState.maps.some(m=>m.id===payload.map)){mapVoteState.votes={...mapVoteState.votes,[payload.id]:payload.map};send("map-vote-sync",mapVoteState);renderMapVote();}})
     .on("broadcast",{event:"map-vote-sync"},({payload})=>{if(!isHost&&payload?.started&&!mapVoteState.resolved)applyMapVoteState(payload);})
-    .on("broadcast",{event:"map-vote-result"},({payload})=>{applyMapVoteState(payload);})
+    .on("broadcast",{event:"map-vote-result"},({payload})=>{applyMapVoteState(payload);if(payload?.resolved)setTimeout(()=>startMatch(),900);})
     .on("broadcast",{event:"match-start"},({payload})=>{if(payload?.by!==selfId)startMatch()})
     .on("broadcast",{event:"host-eliminated"},({payload})=>{if(payload?.id&&payload.id!==selfId){const old=players.get(payload.id);if(old)players.set(payload.id,{...old,alive:false});applyRemotePlayers();status("HOST ELIMINATED · transferring host control");render();}});
   next.subscribe(async s=>{
