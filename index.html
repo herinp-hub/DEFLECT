@@ -54,6 +54,27 @@ if(player)scene.remove(player);
 player=makeFighter(0x168dff,true);scene.add(player);
 player.position.set(29.5,18.2,0);player.rotation.y=Math.PI;cameraYaw=Math.PI;
 lobbyMode=true;alive=false;roundOver=false;wasAlive=false;trainingMode=false;
+/* Keep lobby free-roam on the island instead of allowing players to walk
+   off the rear edge and remain suspended in empty space. */
+(function keepPlayerInsideLobby(){
+ const centerX=29.5,centerZ=0,edgeRadius=19.25;
+ let lastSafe=new THREE.Vector3(centerX,18.2,0);
+ const enforce=()=>{
+  if(!player||!lobbyMode)return;
+  const dx=player.position.x-centerX,dz=player.position.z-centerZ;
+  const distance=Math.hypot(dx,dz);
+  if(distance>edgeRadius){
+   const scale=edgeRadius/distance;
+   player.position.x=centerX+dx*scale;
+   player.position.z=centerZ+dz*scale;
+   if(player.position.y<17.4||player.position.y>21.5)player.position.y=lastSafe.y;
+  } else if(player.position.y>=17.4&&player.position.y<=21.5){
+   lastSafe.copy(player.position);
+  }
+  requestAnimationFrame(enforce);
+ };
+ requestAnimationFrame(enforce);
+})();
 bots.forEach(b=>{if(b.group)scene.remove(b.group);});bots=[];
 orb.userData.vel=null;orb.position.set(29.5,19.2,-3.5);orbOwner=-1;targetId=-2;ballTimer=9999;playerAttemptUsed=true;
 islandHUD();applyArenaTheme();
