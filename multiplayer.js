@@ -143,13 +143,20 @@ async function refreshStaffManager(force=false){
   }
 }
 
-const DEV_STUDIOS_ORIGIN = "https://devstudios-mauve.vercel.app";
+const DEV_STUDIOS_ORIGIN = "https://dev-studios-offical.vercel.app";
 window.addEventListener("message", async (event) => {
   if (event.origin !== DEV_STUDIOS_ORIGIN) return;
   if (event.source !== window.opener && event.source !== window.parent) return;
   if (event.data?.type !== "DEV_STUDIOS_AUTH") return;
   const incoming = event.data.session;
   if (!incoming || typeof incoming.access_token !== "string" || typeof incoming.refresh_token !== "string") return;
+  const suppliedName = String(event.data.profile?.display_name || event.data.profile?.username || "").replace(/[^a-zA-Z0-9 _-]/g, "").trim().slice(0, 16);
+  if (suppliedName.length >= 3) {
+    playerName = suppliedName;
+    window.__DEFLECT_MP_NAME__ = suppliedName;
+    sessionStorage.setItem("deflectPlayerName", suppliedName);
+    $("mpName").value = suppliedName;
+  }
   const result = await supabase.auth.setSession({
     access_token: incoming.access_token,
     refresh_token: incoming.refresh_token
