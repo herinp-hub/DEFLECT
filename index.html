@@ -57,19 +57,31 @@ lobbyMode=true;alive=false;roundOver=false;wasAlive=false;trainingMode=false;
 /* Keep lobby free-roam on the island instead of allowing players to walk
    off the rear edge and remain suspended in empty space. */
 (function keepPlayerInsideLobby(){
- const centerX=29.5,centerZ=0,edgeRadius=19.25;
- let lastSafe=new THREE.Vector3(centerX,18.2,0);
+ const startPosition=new THREE.Vector3(29.5,18.2,0);
+ let lastSafe=startPosition.clone();
+ const raycaster=new THREE.Raycaster();
+ const isSupported=position=>{
+  if(!scene||!player)return false;
+  raycaster.set(position.clone().add(new THREE.Vector3(0,3.5,0)),new THREE.Vector3(0,-1,0));
+  const excluded=new Set();
+  player.traverse(object=>excluded.add(object));
+  if(orb)orb.traverse(object=>excluded.add(object));
+  if(Array.isArray(bots))bots.forEach(bot=>bot.group?.traverse(object=>excluded.add(object)));
+  return raycaster.intersectObjects(scene.children,true).some(hit=>{
+   if(excluded.has(hit.object)||!hit.face)return false;
+   if(hit.point.y<position.y-2.2||hit.point.y>position.y+0.65)return false;
+   const normal=hit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
+   return normal.y>0.62;
+  });
+ };
+ window.__DEFLECT_MP_BRIDGE__.isLobbyPositionSupportedForTest=(x,z)=>{
+  if(!location.search.includes('deflectTest=1'))return null;
+  return isSupported(new THREE.Vector3(Number(x),18.2,Number(z)));
+ };
  const enforce=()=>{
-  if(!player||!lobbyMode)return;
-  const dx=player.position.x-centerX,dz=player.position.z-centerZ;
-  const distance=Math.hypot(dx,dz);
-  if(distance>edgeRadius){
-   const scale=edgeRadius/distance;
-   player.position.x=centerX+dx*scale;
-   player.position.z=centerZ+dz*scale;
-   if(player.position.y<17.4||player.position.y>21.5)player.position.y=lastSafe.y;
-  } else if(player.position.y>=17.4&&player.position.y<=21.5){
-   lastSafe.copy(player.position);
+  if(player&&lobbyMode){
+   if(isSupported(player.position))lastSafe.copy(player.position);
+   else player.position.copy(lastSafe);
   }
   requestAnimationFrame(enforce);
  };
@@ -89,7 +101,7 @@ islandHUD();applyArenaTheme();
     const center=bounds.isEmpty()
       ? object.getWorldPosition(new THREE.Vector3())
       : bounds.getCenter(new THREE.Vector3());
-    return Math.hypot(center.x-lobbyCenter.x,center.z-lobbyCenter.z)<21;
+    return Math.hypot(center.x-lobbyCenter.x,center.z-lobbyCenter.z)<27;
   });
   /* Rotate each lobby root in world space without reparenting it. This keeps
      proximity checks and world-position references aligned with the scene. */
