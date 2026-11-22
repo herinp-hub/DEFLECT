@@ -490,6 +490,7 @@ async function join(raw,options={}){
     }
   });
 }
+window.__DEFLECT_MP_DIAGNOSTICS__=()=>({channel:!!channel,roomCode,isHost,matchStarted,isPublicMatch,playerCount:roomPlayers().length,mapVoteState:{...mapVoteState},mapVoteClock:!!mapVoteClock,localState:bridge()?.getLocalState?.()||null});
 window.addEventListener("deflect:host-eliminated",()=>{if(channel&&isHost)send("host-eliminated",{id:selfId});});
 window.addEventListener("deflect:request",event=>{
   const state=event.detail||{},p=state.position;
