@@ -64,6 +64,20 @@ const { chromium } = require('playwright');
       const shopSupport = await page.evaluate(({x,z}) => window.__DEFLECT_MP_BRIDGE__.isLobbyPositionSupportedForTest(x,z), {x:lobbyGeometry.shop[0],z:lobbyGeometry.shop[2]});
       console.log(`TRACE shop floor support ${viewport.name}: ${shopSupport}`);
       if (shopSupport !== true) throw new Error(`${viewport.name}: shop wing has no walkable floor at its interaction anchor; geometry=${JSON.stringify(lobbyGeometry.shopFloor)}`);
+      console.log(`TRACE lobby special objects ${viewport.name}: ${JSON.stringify(lobbyGeometry.specialObjects)}`);
+      const shopPosition=[lobbyGeometry.shop[0],18.2,lobbyGeometry.shop[2]];
+      const shopMoveAccepted=await page.evaluate(position=>window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position,0),shopPosition);
+      if(!shopMoveAccepted)throw new Error(`${viewport.name}: could not move test player to shop entrance`);
+      await page.waitForTimeout(250);
+      const atShop=await page.evaluate(()=>window.__DEFLECT_MP_BRIDGE__.getLocalState().position);
+      if(Math.hypot(atShop[0]-shopPosition[0],atShop[2]-shopPosition[2])>1.5)throw new Error(`${viewport.name}: lobby boundary blocked shop access; player=${JSON.stringify(atShop)} shop=${JSON.stringify(shopPosition)}`);
+      const behindLobby=[29.5,18.2,-40];
+      const offIslandAccepted=await page.evaluate(position=>window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position,0),behindLobby);
+      if(!offIslandAccepted)throw new Error(`${viewport.name}: could not run off-island boundary test`);
+      await page.waitForTimeout(250);
+      const afterBoundary=await page.evaluate(()=>window.__DEFLECT_MP_BRIDGE__.getLocalState().position);
+      if(Math.hypot(afterBoundary[0]-shopPosition[0],afterBoundary[2]-shopPosition[2])>1.5)throw new Error(`${viewport.name}: player escaped the island instead of being returned to the last safe shop position; player=${JSON.stringify(afterBoundary)}`);
+      console.log(`PASS ${viewport.name}: shop entrance is reachable and off-island movement is blocked`);
       if (!lobbyProbe.menuHidden || !lobbyProbe.state.lobbyMode || lobbyProbe.state.alive || !lobbyProbe.startApi) {
         throw new Error(`${viewport.name}: direct-to-lobby startup failed: ${JSON.stringify(lobbyProbe)}`);
       }
