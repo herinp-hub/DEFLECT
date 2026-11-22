@@ -171,9 +171,13 @@ window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest=()=>{
   const portal=islandPortal.getWorldPosition(new THREE.Vector3());
   const training=trainingDeck.getWorldPosition(new THREE.Vector3());
   const shop=shopWing.getWorldPosition(new THREE.Vector3());
+  const shopPath=[-10,-12,-14,-16,-18,-20].map(z=>({z,supported:window.__DEFLECT_MP_BRIDGE__.isLobbyPositionSupportedForTest(29.5,z)}));
+  const bridge=scene.getObjectByName('lobbyShopBridge');
+  const bridgeBox=bridge?new THREE.Box3().setFromObject(bridge):null;
   return {
     portal:point(portal),training:point(training),shop:point(shop),
     portalFloor:floorAt(portal.x,portal.z),trainingFloor:floorAt(training.x,training.z),shopFloor:floorAt(shop.x,shop.z),
+    shopPath,bridgeBounds:bridgeBox?{min:point(bridgeBox.min),max:point(bridgeBox.max)}:null,
     player:point(player.position),roots,specialObjects,
     targets:trainingTargets.map(t=>({cached:point(t.position),actual:point(t.target.getWorldPosition(new THREE.Vector3()))}))
   };
