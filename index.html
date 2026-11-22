@@ -60,6 +60,7 @@ lobbyMode=true;alive=false;roundOver=false;wasAlive=false;trainingMode=false;
  const startPosition=new THREE.Vector3(29.5,18.2,0);
  let lastSafe=startPosition.clone();
  const raycaster=new THREE.Raycaster();
+ raycaster.camera=camera;
  const isSupported=position=>{
   if(!scene||!player)return false;
   raycaster.set(position.clone().add(new THREE.Vector3(0,3.5,0)),new THREE.Vector3(0,-1,0));
@@ -119,6 +120,7 @@ window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest=()=>{
   if(!location.search.includes('deflectTest=1'))return null;
   const point=v=>[+v.x.toFixed(3),+v.y.toFixed(3),+v.z.toFixed(3)];
   const raycaster=new THREE.Raycaster();
+  raycaster.camera=camera;
   const floorAt=(x,z)=>{
     raycaster.set(new THREE.Vector3(x,40,z),new THREE.Vector3(0,-1,0));
     const hits=raycaster.intersectObjects(scene.children,true)
