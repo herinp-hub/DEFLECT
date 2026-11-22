@@ -68,7 +68,7 @@ lobbyMode=true;alive=false;roundOver=false;wasAlive=false;trainingMode=false;
   if(orb)orb.traverse(object=>excluded.add(object));
   if(Array.isArray(bots))bots.forEach(bot=>bot.group?.traverse(object=>excluded.add(object)));
   return raycaster.intersectObjects(scene.children,true).some(hit=>{
-   if(excluded.has(hit.object)||!hit.face)return false;
+   if(!hit.object||excluded.has(hit.object)||!hit.face)return false;
    if(hit.point.y<position.y-2.2||hit.point.y>position.y+0.65)return false;
    const normal=hit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
    return normal.y>0.62;
@@ -122,7 +122,7 @@ window.__DEFLECT_MP_BRIDGE__.getLobbyPortalAnchorsForTest=()=>{
   const floorAt=(x,z)=>{
     raycaster.set(new THREE.Vector3(x,40,z),new THREE.Vector3(0,-1,0));
     const hits=raycaster.intersectObjects(scene.children,true)
-      .filter(h=>h.object!==player&&h.object!==orb&&h.point.y>10&&h.point.y<25)
+      .filter(h=>h.object&&h.object!==player&&h.object!==orb&&h.point.y>10&&h.point.y<25)
       .slice(0,6);
     return hits.map(h=>({name:h.object.name||h.object.parent?.name||'',point:point(h.point),distance:+h.distance.toFixed(2),normal:point(h.face?.normal||new THREE.Vector3())}));
   };
