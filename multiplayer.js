@@ -93,7 +93,7 @@ async function withButton(button,label,task){
 }
 let lastPresenceAlive=null;
 const MAP_VOTE_CHOICES=[{id:"classic",name:"CLASSIC ARENA",tone:"classic"},{id:"map_frost",name:"FROSTFALL",tone:"frost"},{id:"map_ember",name:"EMBER CORE",tone:"ember"},{id:"map_void",name:"VOID RIFT",tone:"void"}];
-let mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null},mapVoteClock=null,lastMapVoteSync=0;
+let mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null},mapVoteClock=null,lastMapVoteSync=0,lastRoundStartAttempt=0,mapVoteResolvedAt=0;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
 
@@ -332,6 +332,8 @@ function renderMapVote(){
 }
 function applyMapVoteState(payload){
   if(!payload||!Array.isArray(payload.maps))return;
+  if(payload.started&&!payload.resolved)mapVoteResolvedAt=0;
+  if(payload.resolved&&!mapVoteResolvedAt)mapVoteResolvedAt=Date.now();
   mapVoteState={...mapVoteState,...payload,maps:payload.maps,votes:payload.votes||{},selected:payload.votes?.[selfId]||mapVoteState.selected};
   if(mapVoteState.resolved&&mapVoteState.winner){localStorage.setItem("deflectMap",mapVoteState.winner);mapVoteRoot.style.display="none";window.__DEFLECT_APPLY_ARENA_THEME__?.();window.dispatchEvent(new CustomEvent("deflect-map-applied",{detail:{map:mapVoteState.winner}}));}
   renderMapVote();
@@ -344,7 +346,7 @@ function beginMapVote(){
   if(!channel||!isHost||mapVoteState.started||mapVoteState.resolved)return;
   const payload={started:true,resolved:false,endsAt:Date.now()+10000,maps:MAP_VOTE_CHOICES,votes:{},selected:null,winner:null};
   applyMapVoteState(payload);send("map-vote-start",payload);
-  clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>{renderMapVote();if(Date.now()>=mapVoteState.endsAt&&!mapVoteState.resolved){clearInterval(mapVoteClock);finishMapVote();}},100);
+  clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>{renderMapVote();if(isHost&&Date.now()>=mapVoteState.endsAt&&!mapVoteState.resolved){clearInterval(mapVoteClock);finishMapVote();}},100);
 }
 function finishMapVote(){
   if(!isHost||mapVoteState.resolved)return;
@@ -379,7 +381,7 @@ function render(){
   // The room host starts the round once a second player is present. Previously
   // both clients waited for someone else to start, so neither ever launched an orb.
   const enoughPlayers=isPublicMatch?unique.length>=1:unique.length>=2;
-  if(enoughPlayers&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver&&!mapVoteState.started&&!mapVoteState.resolved)beginMapVote();
+  if(enoughPlayers&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!mapVoteState.started&&!mapVoteState.resolved)beginMapVote();
   renderMapVote();
 }
 function applyRemotePlayers(){
@@ -388,7 +390,7 @@ function applyRemotePlayers(){
 }
 function startMatch(){
   const state=bridge()?.getLocalState?.();
-  if(!mapVoteState.resolved||state?.alive||matchStarted||!state?.lobbyMode||state?.roundOver)return;
+  if(!mapVoteState.resolved||state?.alive||matchStarted||!state?.lobbyMode)return;
   matchStarted=true;
   const game=bridge();
   if(typeof game?.startOnlineRound==="function"){
@@ -410,12 +412,17 @@ function startLoops(){
     const aliveNow=!!state.alive;
     if(aliveNow!==lastPresenceAlive){lastPresenceAlive=aliveNow;void channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:aliveNow}});}
     if(state.alive&&!lastAlive){matchStarted=true;send("match-start",{by:selfId,at:Date.now()});}
+    if(lastAlive&&!state.alive&&state.lobbyMode){
+      matchStarted=false;mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null};
+      mapVoteResolvedAt=0;lastRoundStartAttempt=0;clearInterval(mapVoteClock);mapVoteRoot.style.display="none";
+    }
     lastAlive=!!state.alive;
     if(now-lastStateSent>120){
       lastStateSent=now;
       send("player-state",{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,state});
     }
-    if(isHost&&mapVoteState.started&&!mapVoteState.resolved&&now-lastMapVoteSync>1800){lastMapVoteSync=now;send("map-vote-sync",mapVoteState);}
+    if(isHost&&mapVoteState.started&&(!mapVoteState.resolved||Date.now()-mapVoteResolvedAt<15000)&&now-lastMapVoteSync>900){lastMapVoteSync=now;send("map-vote-sync",mapVoteState);}
+    if(isHost&&mapVoteState.resolved&&!matchStarted&&state.lobbyMode&&!state.alive&&now-lastRoundStartAttempt>1200){lastRoundStartAttempt=now;startMatch();}
     if(isHost&&now-lastOrbSent>100){
       lastOrbSent=now;
       send("orb-state",{state});
@@ -428,7 +435,7 @@ async function leave(){
   clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;clearInterval(publicStatePoll);publicStatePoll=null;matchStarted=false;lastAlive=false;
   const publicId=publicServerId,wasPublic=isPublicMatch;publicServerId=null;isPublicMatch=false;lastPresenceAlive=null;
   if(publicId&&publicPlayerId)await supabase.rpc("deflect_leave_public_server",{p_player_id:publicPlayerId});
-  const old=channel;channel=null;roomCode=null;players.clear();clearInterval(mapVoteClock);mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null};mapVoteRoot.style.display="none";
+  const old=channel;channel=null;roomCode=null;players.clear();clearInterval(mapVoteClock);mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null};mapVoteResolvedAt=0;lastRoundStartAttempt=0;mapVoteRoot.style.display="none";
   bridge()?.setNetworkState(false,false,null,null);
   bridge()?.setRemotePlayers([]);
   if(wasPublic)bridge()?.setPublicBotCount?.(null);
