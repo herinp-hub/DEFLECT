@@ -426,7 +426,7 @@ function startLoops(){
     lastAlive=!!state.alive;
     if(now-lastStateSent>120){
       lastStateSent=now;
-      send("player-state",{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,state});
+      send("player-state",{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,state});
     }
     if(isHost&&mapVoteState.started&&(!mapVoteState.resolved||Date.now()-mapVoteResolvedAt<15000)&&now-lastMapVoteSync>900){lastMapVoteSync=now;send("map-vote-sync",mapVoteState);}
     if(isHost&&mapVoteState.resolved&&!matchStarted&&state.lobbyMode&&!state.alive&&now-lastRoundStartAttempt>1200){lastRoundStartAttempt=now;startMatch();}
@@ -459,7 +459,7 @@ async function join(raw,options={}){
     .on("presence",{event:"join"},render).on("presence",{event:"leave"},()=>{render();applyRemotePlayers()})
     .on("broadcast",{event:"player-state"},({payload})=>{
       if(!payload?.id||payload.id===selfId||!payload.state)return;
-      players.set(payload.id,{...payload.state,name:payload.name||"Player",role:payload.role||"player",userId:payload.userId||null,_lastSeen:Date.now()});
+      players.set(payload.id,{...payload.state,name:payload.name||"Player",role:payload.role||"player",userId:payload.userId||null,joinedAt:Number(payload.joinedAt)||Date.now(),_lastSeen:Date.now()});
       render();
       if(payload.state.alive&&!bridge()?.getLocalState?.()?.alive&&mapVoteState.resolved)startMatch();
     })
