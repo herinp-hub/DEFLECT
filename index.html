@@ -223,7 +223,7 @@ function installDeflectVisuals(){
   @keyframes dfPulse{50%{opacity:.45;box-shadow:0 0 3px #62f5c1}}
   @media(max-width:600px){#deflectVisualFrame{inset:5px;border-radius:10px}#deflectVisualBrand{top:9px;left:9px;padding:6px 8px;font-size:9px}#deflectVisualFrame:before,#deflectVisualFrame:after{width:34px;height:34px}}
   @media(prefers-reduced-motion:reduce){#deflectVisualBrand .dfDot{animation:none}#islandHud button,.overlay button,#featureShop button{transition:none!important}}
- `;
+ \`;
  document.head.appendChild(style);
  const frame=document.createElement('div');frame.id='deflectVisualFrame';frame.setAttribute('aria-hidden','true');
  const brand=document.createElement('div');brand.id='deflectVisualBrand';brand.innerHTML='<span class="dfDot"></span><span>DEFLECT<small>RIFT ARENA · LIVE</small></span>';
