@@ -80,7 +80,7 @@ let playerName=(()=>{let n=sessionStorage.getItem("deflectPlayerName");if(!n){n=
 window.__DEFLECT_MP_NAME__=playerName;
 let joinedAt=Date.now();
 $("mpName").value=playerName;
-let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,publicPlayerId=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,lastStaffRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
+let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,matchStartRetryTimer=null,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,publicPlayerId=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,lastStaffRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
 let ownerRestorePromise=Promise.resolve();
 const status=s=>$("mpStatus").textContent=s;
 async function withButton(button,label,task){
@@ -356,7 +356,7 @@ function finishMapVote(){
   const winner=(tied.length?tied[Math.floor(Math.random()*tied.length)]:MAP_VOTE_CHOICES[0]).id;
   const payload={...mapVoteState,resolved:true,winner};applyMapVoteState(payload);send("map-vote-result",payload);
   mapVoteRoot.querySelector("#mvFoot").textContent="WINNER: "+(MAP_VOTE_CHOICES.find(m=>m.id===winner)?.name||winner)+" · Loading arena…";
-  setTimeout(()=>startMatch(),900);
+  setTimeout(()=>startMatchWithRetry(),900);
 }
 function electHost(){
   const members=roomPlayers();
@@ -403,6 +403,17 @@ function startMatch(){
   if(bridge()?.getLocalState?.()?.alive)status("Online round starting…");
   else matchStarted=false;
 }
+function startMatchWithRetry(attempt=0){
+  clearTimeout(matchStartRetryTimer);
+  const state=bridge()?.getLocalState?.();
+  if(state?.alive){matchStarted=true;return;}
+  if(!mapVoteState.resolved||!state?.lobbyMode||state?.roundOver)return;
+  if(attempt>=20){status("Arena start timed out · reconnect to try again.");return;}
+  startMatch();
+  const after=bridge()?.getLocalState?.();
+  if(after?.alive){matchStarted=true;return;}
+  matchStartRetryTimer=setTimeout(()=>startMatchWithRetry(attempt+1),500);
+}
 function startLoops(){
   clearInterval(loops);
   loops=setInterval(()=>{
@@ -427,7 +438,7 @@ function startLoops(){
   },35);
 }
 async function leave(){
-  clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;clearInterval(publicStatePoll);publicStatePoll=null;matchStarted=false;lastAlive=false;
+  clearTimeout(matchStartRetryTimer);matchStartRetryTimer=null;clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;clearInterval(publicStatePoll);publicStatePoll=null;matchStarted=false;lastAlive=false;
   const publicId=publicServerId,wasPublic=isPublicMatch;publicServerId=null;isPublicMatch=false;lastPresenceAlive=null;
   if(publicId&&publicPlayerId)await supabase.rpc("deflect_leave_public_server",{p_player_id:publicPlayerId});
   const old=channel;channel=null;roomCode=null;players.clear();clearInterval(mapVoteClock);mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null};mapVoteRoot.style.display="none";
