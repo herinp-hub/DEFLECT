@@ -265,7 +265,14 @@ async function pollAdminActions(){
 }
 function roomPlayers(){
   if(!channel)return [];
-  return Object.values(channel.presenceState()).flat().map(x=>x?.player).filter(Boolean);
+  const presence=Object.values(channel.presenceState()).flat().map(x=>x?.player).filter(Boolean);
+  // Presence sync can lag behind a successful channel join. Use the already
+  // received player-state broadcasts as a short-lived roster fallback so the
+  // room list and host election don't wait on a delayed presence snapshot.
+  const now=Date.now(),present=new Set(presence.map(p=>p.id));
+  for(const [id,state] of players){if(!present.has(id)&&now-(state._lastSeen||0)>3500)players.delete(id);}
+  const fallback=[...players.entries()].filter(([id,state])=>id!==selfId&&!present.has(id)&&now-(state._lastSeen||0)<=3500).map(([id,state])=>({id,name:state.name||"Player",role:state.role||"player",userId:state.userId||null,joinedAt:state.joinedAt||0,alive:state.alive!==false}));
+  return [...new Map([...presence,...fallback].map(p=>[p.id,p])).values()];
 }
 
 function parseCommandWords(input){
@@ -452,7 +459,8 @@ async function join(raw,options={}){
     .on("presence",{event:"join"},render).on("presence",{event:"leave"},()=>{render();applyRemotePlayers()})
     .on("broadcast",{event:"player-state"},({payload})=>{
       if(!payload?.id||payload.id===selfId||!payload.state)return;
-      players.set(payload.id,{...payload.state,name:payload.name||"Player",role:payload.role||"player",userId:payload.userId||null});applyRemotePlayers();
+      players.set(payload.id,{...payload.state,name:payload.name||"Player",role:payload.role||"player",userId:payload.userId||null,_lastSeen:Date.now()});
+      render();
       if(payload.state.alive&&!bridge()?.getLocalState?.()?.alive&&mapVoteState.resolved)startMatch();
     })
     .on("broadcast",{event:"orb-state"},({payload})=>{
