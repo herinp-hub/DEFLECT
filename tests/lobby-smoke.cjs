@@ -29,7 +29,7 @@ const { chromium } = require('playwright');
       if (geometry.shopPath?.some(sample => !sample.supported)) throw new Error(`${viewport.name}: gap remains on shop approach: ${JSON.stringify(geometry.shopPath)}`);
       if (geometry.trainingPath?.some(sample => !sample.supported)) throw new Error(`${viewport.name}: gap remains on training approach: ${JSON.stringify(geometry.trainingPath)}`);
       const beacons=(geometry.specialObjects||[]).filter(object=>object.geometry==='OctahedronGeometry');
-      for(const [name,z] of [['shop',-20],['training',20]]){
+      for(const [name,z] of [['shop',-10.5],['training',20]]){
         const beacon=beacons.find(object=>Math.abs(object.position[2]-z)<0.6);
         if(!beacon||Math.abs(beacon.position[0]-29.5)>0.6||Math.abs(beacon.position[1]-21.1)>0.6)throw new Error(`${viewport.name}: ${name} beacon is not centered over its portal: ${JSON.stringify(beacons)}`);
       }
@@ -54,7 +54,16 @@ const { chromium } = require('playwright');
       const shopPrompt=await page.evaluate(()=>{const p=document.getElementById('lobbyActionPrompt');return {display:getComputedStyle(p).display,action:p.dataset.action,text:p.textContent};});
       if(shopPrompt.action!=='shop'||shopPrompt.text!=='OPEN ISLAND SHOP')throw new Error(`${viewport.name}: shop prompt is bound to the wrong area: ${JSON.stringify(shopPrompt)}`);
 
-      const behindLobby = [29.5, 18.2, -40];
+      const arenaPosition = [29.5, 18.2, -39];
+      const arenaSupport = await page.evaluate(({x,z}) => window.__DEFLECT_MP_BRIDGE__.isLobbyPositionSupportedForTest(x,z), {x:arenaPosition[0],z:arenaPosition[2]});
+      if (arenaSupport !== true) throw new Error(`${viewport.name}: front arena has no connected walkable floor`);
+      const movedToArena = await page.evaluate(position => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position, 0), arenaPosition);
+      if (!movedToArena) throw new Error(`${viewport.name}: could not move test player to the front arena`);
+      await page.waitForTimeout(250);
+      const atArena = await page.evaluate(() => window.__DEFLECT_MP_BRIDGE__.getLocalState().position);
+      if (Math.hypot(atArena[0]-arenaPosition[0],atArena[2]-arenaPosition[2]) > 1.5) throw new Error(`${viewport.name}: front arena is outside lobby movement bounds`);
+
+      const behindLobby = [29.5, 18.2, -50];
       const movedBehind = await page.evaluate(position => window.__DEFLECT_MP_BRIDGE__.setPlayerStateForTest(position, 0), behindLobby);
       if (!movedBehind) throw new Error(`${viewport.name}: could not run off-island boundary test`);
       await page.waitForTimeout(250);
@@ -64,7 +73,7 @@ const { chromium } = require('playwright');
       }
 
       if (failures.length) throw new Error(failures.join('\n'));
-      console.log(`PASS ${viewport.name}: shop is reachable and walking off the island is blocked`);
+      console.log(`PASS ${viewport.name}: central shop, rear training, front arena and outer boundary are reachable/blocked correctly`);
       await page.close();
     }
   } finally {
