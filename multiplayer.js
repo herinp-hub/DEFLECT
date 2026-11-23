@@ -106,8 +106,10 @@ async function refreshAuth(session){
       const claim=await supabase.rpc("deflect_claim_owner");
       if(claim.error)status("Owner setup: verify the email link, then reload DEFLECT.");
     }
-    const profileResult=await supabase.rpc("deflect_set_my_username",{p_username:playerName});
-    if(profileResult.error&&profileResult.error.message.includes("already taken"))status("Your username is already in use. Choose a different username.");
+    if(!authSession.user.is_anonymous){
+      const profileResult=await supabase.rpc("deflect_set_my_username",{p_username:playerName});
+      if(profileResult.error&&profileResult.error.message.includes("already taken"))status("Your username is already in use. Choose a different username.");
+    }
     const roleResult=await supabase.rpc("deflect_my_role");
     if(!roleResult.error)currentRole=roleResult.data||"player";
     const banResult=await supabase.from("deflect_bans").select("user_id").eq("user_id",authSession.user.id).maybeSingle();
@@ -503,7 +505,7 @@ window.addEventListener("deflect:request",event=>{
   if(channel&&Array.isArray(p))send("deflect-request",{id:selfId,position:p,rotation:state.rotation});
 });
 window.addEventListener("deflect:remote-eliminated",event=>{const id=event.detail?.id;if(channel&&isHost&&id)send("player-eliminated",{id,by:selfId});});
-$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(clean.length<3){status("Username must be at least 3 characters.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;sessionStorage.setItem("deflectPlayerName",clean);let accountSaveError=null;if(authSession){const saved=await supabase.rpc("deflect_set_my_username",{p_username:clean});if(saved.error)accountSaveError=saved.error.message;}if(isPublicMatch){status(accountSaveError?"Username saved for this tab; account sync unavailable.":"Updating username…");await joinPublic();}else{if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:!!bridge()?.getLocalState?.()?.alive}});status(accountSaveError?"Username saved for this tab; account sync unavailable: "+accountSaveError:"Username saved: "+clean);}};
+$("mpSaveName").onclick=async()=>{const clean=$("mpName").value.replace(/[^a-zA-Z0-9 _-]/g,"").trim().slice(0,16);if(clean.length<3){status("Username must be at least 3 characters.");return;}playerName=clean;window.__DEFLECT_MP_NAME__=clean;sessionStorage.setItem("deflectPlayerName",clean);let accountSaveError=null;if(authSession&&!authSession.user.is_anonymous){const saved=await supabase.rpc("deflect_set_my_username",{p_username:clean});if(saved.error)accountSaveError=saved.error.message;}if(isPublicMatch){status(accountSaveError?"Username saved for this tab; account sync unavailable.":"Updating username…");await joinPublic();}else{if(channel)await channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:!!bridge()?.getLocalState?.()?.alive}});status(accountSaveError?"Username saved for this tab; account sync unavailable: "+accountSaveError:"Username saved: "+clean);}};
 $("mpName").onkeydown=e=>{if(e.key==="Enter")$("mpSaveName").click()};
 $("mpAnnounce").onclick=()=>withButton($("mpAnnounce"),"SENDING",async()=>{const message=$("mpAdminMessage").value.trim();if(!message){status("Type an announcement first.");return;}if(await issueAdminAction(null,"announce",{message}))$("mpAdminMessage").value="";});
 $("mpStartEvent").onclick=()=>withButton($("mpStartEvent"),"STARTING",async()=>{const event=$("mpAdminEvent").value;await issueAdminAction(null,"event",{event,message:"ADMIN EVENT · "+event.replaceAll("_"," ").toUpperCase()});});
