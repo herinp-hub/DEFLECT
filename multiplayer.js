@@ -389,7 +389,7 @@ function render(){
   // The room host starts the round once a second player is present. Previously
   // both clients waited for someone else to start, so neither ever launched an orb.
   const enoughPlayers=isPublicMatch?unique.length>=1:unique.length>=2;
-  if(enoughPlayers&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver&&!mapVoteState.started&&!mapVoteState.resolved)beginMapVote();
+  if(enoughPlayers&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver)startMatch();
   renderMapVote();
 }
 function applyRemotePlayers(){
@@ -398,7 +398,7 @@ function applyRemotePlayers(){
 }
 function startMatch(){
   const state=bridge()?.getLocalState?.();
-  if(!mapVoteState.resolved||state?.alive||matchStarted||!state?.lobbyMode||state?.roundOver)return;
+  if(state?.alive||matchStarted||!state?.lobbyMode||state?.roundOver)return;
   matchStarted=true;
   const game=bridge();
   if(typeof game?.startOnlineRound==="function"){
@@ -415,7 +415,7 @@ function startMatchWithRetry(attempt=0){
   clearTimeout(matchStartRetryTimer);
   const state=bridge()?.getLocalState?.();
   if(state?.alive){matchStarted=true;return;}
-  if(!mapVoteState.resolved||!state?.lobbyMode||state?.roundOver)return;
+  if(!state?.lobbyMode||state?.roundOver)return;
   if(attempt>=20){status("Arena start timed out · reconnect to try again.");return;}
   startMatch();
   const after=bridge()?.getLocalState?.();
@@ -475,7 +475,7 @@ async function join(raw,options={}){
     .on("broadcast",{event:"player-state"},({payload})=>{
       if(!payload?.id||payload.id===selfId||!payload.state)return;
       players.set(payload.id,{...payload.state,name:payload.name||"Player",role:payload.role||"player",userId:payload.userId||null});applyRemotePlayers();
-      if(payload.state.alive&&!bridge()?.getLocalState?.()?.alive&&mapVoteState.resolved)startMatch();
+      if(payload.state.alive&&!bridge()?.getLocalState?.()?.alive)startMatch();
     })
     .on("broadcast",{event:"orb-state"},({payload})=>{
       if(!isHost&&payload?.state)bridge()?.applySnapshot(payload.state);
