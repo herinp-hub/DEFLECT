@@ -222,7 +222,24 @@ function installDeflectVisuals(){
   #deflectVisualBrand small{display:block;margin-top:4px;color:#7fa9c9;font-size:8px;letter-spacing:.16em}
   @keyframes dfPulse{50%{opacity:.45;box-shadow:0 0 3px #62f5c1}}
   @media(max-width:600px){#deflectVisualFrame{inset:5px;border-radius:10px}#deflectVisualBrand{top:9px;left:9px;padding:6px 8px;font-size:9px}#deflectVisualFrame:before,#deflectVisualFrame:after{width:34px;height:34px}}
-  @media(prefers-reduced-motion:reduce){#deflectVisualBrand .dfDot{animation:none}#islandHud button,.overlay button,#featureShop button{transition:none!important}}
+  /* Rift Arena visual pass 2 */
+  body{background:radial-gradient(ellipse at 50% 42%,#1a3a66 0%,#0a1730 42%,#030711 100%)!important}
+  canvas{filter:saturate(1.2) contrast(1.06) drop-shadow(0 0 18px #318cff18)}
+  #deflectVisualFrame{border-color:#8deaff25;box-shadow:inset 0 0 85px #3b9dff12,0 0 35px #277fff0b}
+  #deflectVisualFrame:before,#deflectVisualFrame:after{width:76px;height:76px;border-color:#70eaff99;filter:drop-shadow(0 0 7px #48dfff55)}
+  #deflectVisualBrand{top:18px;left:20px;padding:9px 13px;border-color:#6ceaff66;background:linear-gradient(115deg,#06172bf2,#101a36e8);box-shadow:0 8px 30px #0008,0 0 24px #36cfff19}
+  #deflectVisualBrand:after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,#6ceaff,transparent);opacity:.8}
+  #islandHud button,.overlay button,#featureShop button,#deflectDailyPanel button,#deflectMp button{border-radius:11px!important;border-color:#83eaff66!important;box-shadow:0 5px 18px #0005,inset 0 1px #ffffff18!important;background-image:linear-gradient(135deg,#67eaff12,#438bff0b)!important}
+  #islandHud button:not(:disabled):hover,.overlay button:not(:disabled):hover,#featureShop button:not(:disabled):hover,#deflectDailyPanel button:not(:disabled):hover,#deflectMp button:not(:disabled):hover{box-shadow:0 9px 28px #0008,0 0 18px #37d8ff2b!important}
+  #featureShop .fsCard{border-color:#6fdfff4d!important;background:linear-gradient(145deg,#132b47ee,#091629f2)!important;box-shadow:0 10px 28px #0006,inset 0 1px #ffffff0b}
+  #featureShop .fsCard:hover{border-color:#7ceaff!important;box-shadow:0 14px 34px #0008,0 0 22px #38cfff25!important}
+  #deflectDailyPanel .ddPanel{border-color:#79eaffaa;box-shadow:0 28px 100px #000e,0 0 35px #36bfff20,inset 0 1px #ffffff18}
+  #deflectMp{backdrop-filter:blur(12px)}
+  #deflectMp>div{border-color:#78eaff66!important;box-shadow:0 24px 90px #000c,0 0 35px #36bfff1c}
+  @keyframes dfEdgeGlow{0%,100%{opacity:.48}50%{opacity:1}}
+  #deflectVisualFrame:before,#deflectVisualFrame:after{animation:dfEdgeGlow 3.2s ease-in-out infinite}
+  @media(max-width:600px){#deflectVisualFrame:before,#deflectVisualFrame:after{width:42px;height:42px}#deflectVisualBrand{top:10px;left:10px}}
+  @media(prefers-reduced-motion:reduce){#deflectVisualFrame:before,#deflectVisualFrame:after{animation:none}}
  \`;
  document.head.appendChild(style);
  const frame=document.createElement('div');frame.id='deflectVisualFrame';frame.setAttribute('aria-hidden','true');
