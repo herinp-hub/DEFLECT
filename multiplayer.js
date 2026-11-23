@@ -267,7 +267,15 @@ async function pollAdminActions(){
 }
 function roomPlayers(){
   if(!channel)return [];
-  return Object.values(channel.presenceState()).flat().map(x=>x?.player).filter(Boolean);
+  const present=Object.values(channel.presenceState()).flat().map(x=>x?.player).filter(Boolean);
+  // Realtime presence can briefly omit this tab immediately after SUBSCRIBED.
+  // Keep the local player in the roster so a solo public server can elect its
+  // host and begin the map-vote/match flow without waiting for a later sync.
+  if(!present.some(p=>p.id===selfId)){
+    const state=bridge()?.getLocalState?.();
+    present.push({id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:!!state?.alive});
+  }
+  return present;
 }
 
 function parseCommandWords(input){
