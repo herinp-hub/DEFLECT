@@ -247,6 +247,165 @@ document.getElementById("statusHud").textContent="SKY LOBBY • FREE ROAM";
 document.getElementById("levelHud").textContent=level;document.getElementById("winsHud").textContent=wins;
 saveCoins();updateIslandBoard();
 (function(){let tap=null;const selectors="#islandHud button, #featureVaultToggle, #featureShop button, #lobbyActionPrompt, #portalPrompt";document.addEventListener("touchstart",e=>{const btn=e.target.closest(selectors);if(!btn||btn.disabled)return;const t=e.changedTouches[0];tap={btn,x:t.clientX,y:t.clientY,id:t.identifier,at:Date.now()};},{passive:true});document.addEventListener("touchend",e=>{if(!tap)return;const t=Array.from(e.changedTouches).find(x=>x.identifier===tap.id);if(!t){tap=null;return;}const ok=Math.hypot(t.clientX-tap.x,t.clientY-tap.y)<24&&Date.now()-tap.at<900&&tap.btn.isConnected&&!tap.btn.disabled;const btn=tap.btn;tap=null;if(ok){e.preventDefault();btn.click();}},{passive:false});})();
+/* DEFLECT VISUAL OVERHAUL — decorative only; no movement, hitbox, or round rules changed. */
+(function installDeflectVisualOverhaul(){
+ if(window.__DEFLECT_VISUAL_UPGRADE__)return;
+ window.__DEFLECT_VISUAL_UPGRADE__=true;
+ const style=document.createElement("style");
+ style.id="deflect-visual-overhaul";
+ style.textContent=[
+  "#islandHud{background:linear-gradient(145deg,rgba(7,20,39,.94),rgba(10,34,57,.86))!important;border:1px solid rgba(100,220,255,.42)!important;border-radius:18px!important;box-shadow:0 12px 38px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.09),0 0 24px rgba(43,190,255,.12)!important;backdrop-filter:blur(14px)!important;color:#effaff!important}",
+  "#islandHud button,#featureShop button,#featureVaultToggle,#powerBtn{border:1px solid rgba(120,220,255,.38)!important;border-radius:12px!important;background:linear-gradient(180deg,rgba(34,76,106,.95),rgba(13,37,62,.96))!important;color:#f2fbff!important;box-shadow:0 5px 16px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.1)!important;transition:transform .16s ease,filter .16s ease,box-shadow .16s ease!important}",
+  "#islandHud button:hover,#featureShop button:hover,#featureVaultToggle:hover,#powerBtn:hover{filter:brightness(1.18)!important;transform:translateY(-2px)!important;box-shadow:0 8px 22px rgba(0,0,0,.3),0 0 16px rgba(69,210,255,.16)!important}",
+  "#statusHud,#levelHud,#winsHud,#rivalsHud{border:1px solid rgba(119,211,255,.28)!important;border-radius:11px!important;background:rgba(5,18,34,.78)!important;box-shadow:0 5px 18px rgba(0,0,0,.25)!important;backdrop-filter:blur(9px)!important;color:#eaf8ff!important;text-shadow:0 1px 8px rgba(61,190,255,.25)!important}",
+  "#lobbyActionPrompt{border:1px solid rgba(114,224,255,.65)!important;border-radius:14px!important;background:linear-gradient(135deg,rgba(7,24,44,.96),rgba(13,54,79,.94))!important;box-shadow:0 0 26px rgba(44,194,255,.25),0 10px 24px rgba(0,0,0,.3)!important;color:#f2fcff!important;backdrop-filter:blur(10px)!important}",
+  "#powerHud,#featureShop{border:1px solid rgba(112,214,255,.32)!important;border-radius:16px!important;box-shadow:0 12px 32px rgba(0,0,0,.34),0 0 22px rgba(54,183,255,.1)!important;backdrop-filter:blur(12px)!important}",
+  "#deflectVisualBadge{position:fixed;z-index:90;top:12px;left:50%;transform:translateX(-50%);padding:7px 13px;border:1px solid rgba(111,220,255,.35);border-radius:999px;background:rgba(5,18,34,.72);box-shadow:0 6px 20px rgba(0,0,0,.22),0 0 18px rgba(52,190,255,.12);color:#dff8ff;font:800 10px/1.2 system-ui,sans-serif;letter-spacing:.16em;pointer-events:none;backdrop-filter:blur(10px)}",
+  "@media(max-width:700px){#deflectVisualBadge{top:7px;font-size:9px;padding:6px 10px}#islandHud{max-width:94vw!important}}"
+ ].join("");
+ document.head.appendChild(style);
+ const badge=document.createElement("div");
+ badge.id="deflectVisualBadge";
+ badge.textContent="DEFLECT  •  SKY LOBBY";
+ document.body.appendChild(badge);
+ const lobbyDecor=new THREE.Group();lobbyDecor.name="deflectLobbyVisuals";scene.add(lobbyDecor);
+ const lobbyLights=new THREE.Group();lobbyLights.name="deflectLobbyLighting";scene.add(lobbyLights);
+ lobbyLights.add(new THREE.HemisphereLight(0xa9dcff,0x15223b,.72));
+ const keyLight=new THREE.DirectionalLight(0xc5eaff,1.05);keyLight.position.set(29.5+16,34,18);lobbyLights.add(keyLight);
+ const cyanLight=new THREE.PointLight(0x39cfff,7,27,2);cyanLight.position.set(29.5,22,0);lobbyLights.add(cyanLight);
+ const warmLight=new THREE.PointLight(0xffb66b,4.5,20,2);warmLight.position.set(29.5-8,21,-5);lobbyLights.add(warmLight);
+ const floorMeshes=window.__DEFLECT_LOBBY_FLOOR_MESHES__||[];
+ const floorRay=new THREE.Raycaster();
+ const trainingPos=trainingDeck.getWorldPosition(new THREE.Vector3());
+ const shopPos=shopWing.getWorldPosition(new THREE.Vector3());
+ function getLobbyFloor(x,z){
+  floorRay.set(new THREE.Vector3(x,48,z),new THREE.Vector3(0,-1,0));
+  const hits=floorRay.intersectObjects(floorMeshes,false);
+  for(const hit of hits){
+   if(!hit.face||hit.point.y<15||hit.point.y>22)continue;
+   const normal=hit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
+   if(normal.y>.62)return hit;
+  }
+  return null;
+ }
+ function addTree(x,z,baseY,variant){
+  const tree=new THREE.Group();tree.position.set(x,baseY,z);
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.11,.18,1.15,7),new THREE.MeshStandardMaterial({color:0x654b3d,roughness:1}));
+  trunk.position.y=.55;tree.add(trunk);
+  const greens=[0x176b65,0x1c806e,0x255f79];
+  for(let k=0;k<3;k++){
+   const crown=new THREE.Mesh(new THREE.ConeGeometry(.78-k*.13,1.18,7),new THREE.MeshStandardMaterial({color:greens[(variant+k)%greens.length],roughness:.82,emissive:0x062d38,emissiveIntensity:.16}));
+   crown.position.y=1.15+k*.55;tree.add(crown);
+  }
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(.72,16),new THREE.MeshBasicMaterial({color:0x020812,transparent:true,opacity:.2,depthWrite:false}));
+  shadow.rotation.x=-Math.PI/2;shadow.position.y=.025;tree.add(shadow);
+  lobbyDecor.add(tree);
+ }
+ function addCrystal(x,z,y,variant){
+  const crystal=new THREE.Group();crystal.position.set(x,y,z);
+  const colors=[0x55e5ff,0x8e82ff,0x54ffd0];
+  for(let j=0;j<3;j++){
+   const shard=new THREE.Mesh(new THREE.OctahedronGeometry(.43-j*.055,0),new THREE.MeshStandardMaterial({color:colors[(variant+j)%colors.length],emissive:colors[(variant+j)%colors.length],emissiveIntensity:1.1,metalness:.35,roughness:.2,transparent:true,opacity:.92}));
+   shard.position.set((j-1)*.34,j*.22,((j%2)*.26)-.13);shard.rotation.z=(j-1)*.28;crystal.add(shard);
+  }
+  const glow=new THREE.PointLight(colors[variant%colors.length],1.8,5,2);glow.position.y=.4;crystal.add(glow);
+  lobbyDecor.add(crystal);
+ }
+ let placed=0,variant=0;
+ for(const radius of [8,10.5,13,15]){
+  for(let step=0;step<20;step++){
+   const angle=step/20*Math.PI*2+(radius*.07);
+   const x=29.5+Math.cos(angle)*radius,z=Math.sin(angle)*radius;
+   if(Math.abs(x-29.5)<5.4)continue;
+   if(Math.hypot(x-trainingPos.x,z-trainingPos.z)<6.2||Math.hypot(x-shopPos.x,z-shopPos.z)<6.2)continue;
+   if(Math.hypot(x-29.5,z)<6.2)continue;
+   const hit=getLobbyFloor(x,z);if(!hit)continue;
+   if(placed%3===0)addTree(hit.point.x,hit.point.z,hit.point.y,variant);
+   else addCrystal(hit.point.x,hit.point.z,hit.point.y+.75+(variant%2)*.25,variant);
+   placed++;variant++;
+   if(placed>=20)break;
+  }
+  if(placed>=20)break;
+ }
+ /* Suspended rock fragments below the island add depth without touching the walkable surface. */
+ for(let i=0;i<9;i++){
+  const angle=i/9*Math.PI*2,r=7.5+(i%3)*2.1;
+  const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.8+(i%3)*.24,0),new THREE.MeshStandardMaterial({color:0x26364a,metalness:.22,roughness:.94}));
+  rock.position.set(29.5+Math.cos(angle)*r,12.7-(i%3)*1.15,Math.sin(angle)*r);
+  rock.rotation.set(i*.41,i*.73,i*.27);rock.scale.set(1.25,.8,1.05);lobbyDecor.add(rock);
+  const shard=new THREE.Mesh(new THREE.OctahedronGeometry(.2,0),new THREE.MeshBasicMaterial({color:i%2?0x50dfff:0x9c8bff,transparent:true,opacity:.78}));
+  shard.position.copy(rock.position).add(new THREE.Vector3(0,-.8,0));lobbyDecor.add(shard);
+ }
+ /* A light star field gives the sky lobby more depth while remaining subtle. */
+ const starPositions=[];
+ for(let i=0;i<90;i++){
+  const a=i*2.399963,r=23+(i%11)*2.3;
+  starPositions.push(29.5+Math.cos(a)*r,23+(i%13)*1.8,Math.sin(a)*r);
+ }
+ const starGeometry=new THREE.BufferGeometry();starGeometry.setAttribute("position",new THREE.Float32BufferAttribute(starPositions,3));
+ const stars=new THREE.Points(starGeometry,new THREE.PointsMaterial({color:0xb9eaff,size:.13,transparent:true,opacity:.66,depthWrite:false}));
+ lobbyDecor.add(stars);
+ const trailItems=[];let trailClock=0,lastTrailPosition=new THREE.Vector3(9999,9999,9999);
+ const trailGeometry=new THREE.IcosahedronGeometry(.105,0);
+ function addPlayerTrail(){
+  const material=new THREE.MeshBasicMaterial({color:0x69eaff,transparent:true,opacity:.72,depthWrite:false});
+  const particle=new THREE.Mesh(trailGeometry,material);
+  particle.position.copy(player.position).add(new THREE.Vector3(0,.72,0));
+  particle.scale.setScalar(.7+Math.random()*.55);scene.add(particle);
+  trailItems.push({mesh:particle,age:0,life:.42});
+  if(trailItems.length>28){const old=trailItems.shift();scene.remove(old.mesh);old.mesh.material.dispose();}
+ }
+ const baseUpdate=update;
+ update=function(dt){
+  baseUpdate(dt);
+  const step=Math.min(.06,Math.max(0,Number(dt)||.016));
+  lobbyLights.visible=!!lobbyMode;
+  lobbyDecor.visible=!!lobbyMode;
+  badge.style.display=lobbyMode?"block":"none";
+  if(player){
+   if(!player.userData.__deflectAura){
+    const aura=new THREE.Mesh(new THREE.TorusGeometry(.72,.035,7,48),new THREE.MeshBasicMaterial({color:0x67eaff,transparent:true,opacity:.52,depthWrite:false}));
+    aura.rotation.x=Math.PI/2;aura.position.y=.09;aura.renderOrder=4;player.add(aura);player.userData.__deflectAura=aura;
+   }
+   const aura=player.userData.__deflectAura;
+   if(aura){aura.visible=!!(lobbyMode||alive);aura.material.opacity=.34+Math.sin(performance.now()*.003)*.12;}
+  }
+  if(player&&alive&&!lobbyMode){
+   trailClock+=step;
+   if(player.position.distanceTo(lastTrailPosition)>.34&&trailClock>.075){addPlayerTrail();lastTrailPosition.copy(player.position);trailClock=0;}
+  }else{lastTrailPosition.set(9999,9999,9999);trailClock=0;}
+  for(let i=trailItems.length-1;i>=0;i--){
+   const item=trailItems[i];item.age+=step;const p=Math.min(1,item.age/item.life);
+   item.mesh.material.opacity=.72*(1-p);item.mesh.scale.setScalar((1-p)*.85);
+   item.mesh.position.y+=step*.18;
+   if(p>=1){scene.remove(item.mesh);item.mesh.material.dispose();trailItems.splice(i,1);}
+  }
+ };
+ const baseKillEffect=spawnKillEffect;
+ spawnKillEffect=function(position){
+  baseKillEffect(position);
+  const burst=new THREE.Group();burst.position.copy(position);scene.add(burst);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.58,.055,8,40),new THREE.MeshBasicMaterial({color:0x7cecff,transparent:true,opacity:.95,depthWrite:false}));
+  ring.rotation.x=Math.PI/2;burst.add(ring);
+  const sparks=[];
+  for(let i=0;i<18;i++){
+   const angle=i/18*Math.PI*2;
+   const spark=new THREE.Mesh(new THREE.OctahedronGeometry(.075,0),new THREE.MeshBasicMaterial({color:i%3===0?0xffffff:0x69dfff,transparent:true,opacity:.95}));
+   spark.position.set(Math.cos(angle)*.4,.3+(i%4)*.13,Math.sin(angle)*.4);burst.add(spark);
+   sparks.push({mesh:spark,velocity:new THREE.Vector3(Math.cos(angle)*(1.2+(i%3)*.22),.8+(i%4)*.18,Math.sin(angle)*(1.2+(i%3)*.22))});
+  }
+  const started=performance.now();
+  function animateBurst(now){
+   const p=Math.min(1,(now-started)/620);
+   ring.scale.setScalar(1+p*2.6);ring.material.opacity=1-p;
+   for(const spark of sparks){spark.mesh.position.add(spark.velocity.clone().multiplyScalar(.018));spark.mesh.material.opacity=1-p;}
+   if(p<1)requestAnimationFrame(animateBurst);
+   else{scene.remove(burst);burst.traverse(o=>{if(o.geometry&&o.geometry!==trailGeometry)o.geometry.dispose();if(o.material)o.material.dispose();});}
+  }
+  requestAnimationFrame(animateBurst);
+ };
+})();
+
 `;
 html=html.slice(0,bootAt+"buildLevels();".length)+directLobby+html.slice(bootAt+"buildLevels();".length);
 html=html.replace("</body>",'<script src="/supabase-config.js"><\/script><script type="module" src="/multiplayer.js"><\/script></body>');
