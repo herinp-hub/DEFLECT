@@ -80,7 +80,7 @@ let playerName=(()=>{let n=sessionStorage.getItem("deflectPlayerName");if(!n){n=
 window.__DEFLECT_MP_NAME__=playerName;
 let joinedAt=Date.now();
 $("mpName").value=playerName;
-let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,matchStartRetryTimer=null,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,publicPlayerId=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,lastStaffRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false;
+let channel=null,roomCode=null,players=new Map(),isHost=false,lastAlive=false,matchStarted=false,matchStartRetryTimer=null,lastStateSent=0,lastOrbSent=0,loops=null,authSession=null,publicPlayerId=null,currentRole="player",adminPoll=null,lastAdminCheck=new Date().toISOString(),lastRoleRefresh=0,lastStaffRefresh=0,publicServerId=null,publicHeartbeat=null,publicStatePoll=null,isPublicMatch=false,publicJoinedAt=0,lastPublicStartAttempt=0,publicStartAttempts=0;
 let ownerRestorePromise=Promise.resolve();
 const status=s=>$("mpStatus").textContent=s;
 async function withButton(button,label,task){
@@ -428,6 +428,14 @@ function startLoops(){
     if(!channel)return;
     const now=performance.now(),b=bridge(),state=b?.getLocalState?.();
     if(!state)return;
+    // Public matchmaking must never leave a visitor stranded in the Sky Lobby.
+    // Map voting is a bonus; if its broadcast/timer flow stalls, the elected
+    // host starts the arena directly after a short grace period.
+    if(isPublicMatch&&isHost&&publicJoinedAt&&Date.now()-publicJoinedAt>14000&&state.lobbyMode&&!state.alive&&!state.roundOver&&Date.now()-lastPublicStartAttempt>1200&&publicStartAttempts<12){
+      lastPublicStartAttempt=Date.now();publicStartAttempts++;
+      const started=b?.startOnlineRound?.();
+      if(started||b?.getLocalState?.()?.alive){matchStarted=true;send("match-start",{by:selfId,at:Date.now()});status("Public arena started.");}
+    }
     const aliveNow=!!state.alive;
     if(aliveNow!==lastPresenceAlive){lastPresenceAlive=aliveNow;void channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:aliveNow}});}
     if(state.alive&&!lastAlive){matchStarted=true;send("match-start",{by:selfId,at:Date.now()});}
@@ -491,6 +499,7 @@ async function join(raw,options={}){
     if(s==="SUBSCRIBED"){
       channel=next;
       joinedAt=Date.now();
+      if(isPublicMatch){publicJoinedAt=Date.now();lastPublicStartAttempt=0;publicStartAttempts=0;}
       // Give each public-lobby player a stable spot around the shared spawn point.
       // Without this, every real player occupies the exact same coordinates.
       const localState=bridge()?.getLocalState?.();
