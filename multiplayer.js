@@ -54,7 +54,7 @@ style.textContent=`
 document.head.appendChild(style);
 root.id="deflectMp";
 root.innerHTML=`<details><summary>◉ ONLINE MULTIPLAYER · BETA</summary><div class="mpBody">
-<div class="mpMuted">Choose a username for this tab. It appears above your player in the lobby.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE USERNAME</button></div><input id="mpEmail" type="email" value="herinppatel@gmail.com" placeholder="OWNER EMAIL" autocomplete="username"><input id="mpPassword" type="password" placeholder="OWNER PASSWORD" autocomplete="current-password"><div class="mpRow"><button id="mpLogin">SIGN IN WITH PASSWORD</button><button id="mpResetPassword">SET / RESET PASSWORD</button></div><section id="mpPasswordRecovery" style="display:none;margin-top:7px;padding:8px;border:1px solid #8feaff66;border-radius:8px"><b style="color:#8feaff">SET YOUR NEW OWNER PASSWORD</b><input id="mpNewPassword" type="password" minlength="8" autocomplete="new-password" placeholder="NEW PASSWORD · 8+ CHARACTERS"><button id="mpSavePassword">SAVE NEW PASSWORD</button></section><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><section id="mpStaffTools" class="mpStaff" style="display:none"><b style="color:#8feaff">STAFF MANAGER · OWNER ONLY</b><div class="mpMuted">Enter an existing DEFLECT username to assign or remove a staff rank.</div><input id="mpStaffUsername" maxlength="16" placeholder="PLAYER USERNAME"><select id="mpStaffRole"><option value="co_owner">CO-OWNER</option><option value="admin">ADMIN</option><option value="moderator">MODERATOR</option><option value="player">PLAYER · REMOVE STAFF</option></select><button id="mpStaffAssign">ASSIGN RANK</button><button id="mpStaffRefresh">REFRESH STAFF LIST</button><div id="mpStaffList" class="mpStaffList mpMuted">No staff loaded.</div></section><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div><div id="mpEventTools" style="display:none;margin-top:8px"><input id="mpAdminMessage" maxlength="140" placeholder="ANNOUNCEMENT" autocomplete="off" onkeydown="event.stopPropagation()" onkeyup="event.stopPropagation()"><button id="mpAnnounce">SEND ANNOUNCEMENT</button><select id="mpAdminEvent"><option value="giant_orb">GIANT ORB · BIG</option><option value="double_rewards">DOUBLE COINS · BIG REWARDS</option><option value="orb_rush">⚠️ ORB RUSH · OP</option><option value="low_gravity">LOW GRAVITY · CONTROL</option><option value="rainbow_arena">RAINBOW ARENA · STYLE</option><option value="meteor_shower">⚠️ METEOR SHOWER · OP</option></select><button id="mpStartEvent">START 5-MINUTE EVENT</button></div><div style="margin-top:8px"><button id="mpAuditRefresh">REFRESH AUDIT LOG</button><div id="mpAdminAudit" class="mpMuted"></div></div><div id="mpBanTools" style="display:none;margin-top:8px"><button id="mpBansRefresh">REFRESH BAN LIST</button><div id="mpAdminBans" class="mpMuted"></div></div><div style="margin-top:9px;padding-top:8px;border-top:1px solid #78eaff44"><b style="color:#8feaff">ADMIN COMMANDS</b><input id="mpAdminCommand" maxlength="220" autocomplete="off" placeholder="/help · /kick Player · /announce Hello"><button id="mpCommandRun">RUN COMMAND</button><div class="mpMuted">Try /help for the full command list. Commands are checked by Supabase permissions.</div></div></section>
+<div class="mpMuted">Choose a username for this tab. It appears above your player in the lobby.</div><div class="mpRow"><input id="mpName" maxlength="16" aria-label="Player username" placeholder="YOUR USERNAME"><button id="mpSaveName">SAVE USERNAME</button></div><button id="mpOwnerAccessToggle" type="button" style="width:100%;margin:8px 0;border:1px solid #70cfff;background:linear-gradient(110deg,#123b63,#243b76);color:#effaff;font-weight:900;letter-spacing:.08em">OWNER ACCESS · SIGN IN</button><section id="mpOwnerAccess" style="display:none;margin:7px 0;padding:10px;border:1px solid #70cfff88;border-radius:10px;background:#071a30"><b style="display:block;color:#8feaff;margin-bottom:7px">VERIFIED OWNER SIGN-IN</b><div class="mpMuted">Enter the Owner account password to unlock the verified Owner controls.</div><input id="mpEmail" type="email" value="herinppatel@gmail.com" placeholder="OWNER EMAIL" autocomplete="username"><input id="mpPassword" type="password" placeholder="OWNER PASSWORD" autocomplete="current-password"><div class="mpRow"><button id="mpLogin">SIGN IN AS OWNER</button><button id="mpResetPassword">SET / RESET PASSWORD</button></div></section><section id="mpPasswordRecovery" style="display:none;margin-top:7px;padding:8px;border:1px solid #8feaff66;border-radius:8px"><b style="color:#8feaff">SET YOUR NEW OWNER PASSWORD</b><input id="mpNewPassword" type="password" minlength="8" autocomplete="new-password" placeholder="NEW PASSWORD · 8+ CHARACTERS"><button id="mpSavePassword">SAVE NEW PASSWORD</button></section><div class="mpRow"><button id="mpLogout" style="display:none">SIGN OUT</button></div><div id="mpAuthStatus" class="mpMuted">Not signed in · players can join as guests</div><section id="mpAdmin" style="display:none;margin-top:8px;padding:8px;border:1px solid #ffc97766;border-radius:9px"><b style="color:#ffc977">ADMIN CONSOLE</b><section id="mpStaffTools" class="mpStaff" style="display:none"><b style="color:#8feaff">STAFF MANAGER · OWNER ONLY</b><div class="mpMuted">Enter an existing DEFLECT username to assign or remove a staff rank.</div><input id="mpStaffUsername" maxlength="16" placeholder="PLAYER USERNAME"><select id="mpStaffRole"><option value="co_owner">CO-OWNER</option><option value="admin">ADMIN</option><option value="moderator">MODERATOR</option><option value="player">PLAYER · REMOVE STAFF</option></select><button id="mpStaffAssign">ASSIGN RANK</button><button id="mpStaffRefresh">REFRESH STAFF LIST</button><div id="mpStaffList" class="mpStaffList mpMuted">No staff loaded.</div></section><div id="mpAdminMembers" class="mpMuted">Join a room to manage players.</div><div id="mpEventTools" style="display:none;margin-top:8px"><input id="mpAdminMessage" maxlength="140" placeholder="ANNOUNCEMENT" autocomplete="off" onkeydown="event.stopPropagation()" onkeyup="event.stopPropagation()"><button id="mpAnnounce">SEND ANNOUNCEMENT</button><select id="mpAdminEvent"><option value="giant_orb">GIANT ORB · BIG</option><option value="double_rewards">DOUBLE COINS · BIG REWARDS</option><option value="orb_rush">⚠️ ORB RUSH · OP</option><option value="low_gravity">LOW GRAVITY · CONTROL</option><option value="rainbow_arena">RAINBOW ARENA · STYLE</option><option value="meteor_shower">⚠️ METEOR SHOWER · OP</option></select><button id="mpStartEvent">START 5-MINUTE EVENT</button></div><div style="margin-top:8px"><button id="mpAuditRefresh">REFRESH AUDIT LOG</button><div id="mpAdminAudit" class="mpMuted"></div></div><div id="mpBanTools" style="display:none;margin-top:8px"><button id="mpBansRefresh">REFRESH BAN LIST</button><div id="mpAdminBans" class="mpMuted"></div></div><div style="margin-top:9px;padding-top:8px;border-top:1px solid #78eaff44"><b style="color:#8feaff">ADMIN COMMANDS</b><input id="mpAdminCommand" maxlength="220" autocomplete="off" placeholder="/help · /kick Player · /announce Hello"><button id="mpCommandRun">RUN COMMAND</button><div class="mpMuted">Try /help for the full command list. Commands are checked by Supabase permissions.</div></div></section>
 <div class="mpRow"><button id="mpCreate">CREATE PRIVATE SERVER</button><button id="mpLeave" disabled>LEAVE</button></div>
 <div class="mpRow"><input id="mpCode" maxlength="6" placeholder="PRIVATE SERVER CODE" autocomplete="off"><button id="mpJoin">JOIN PRIVATE</button></div>
 <div id="mpRoom" class="mpMuted">Not connected to a room</div><div id="mpHost"></div>
@@ -93,7 +93,7 @@ async function withButton(button,label,task){
 }
 let lastPresenceAlive=null;
 const MAP_VOTE_CHOICES=[{id:"classic",name:"CLASSIC ARENA",tone:"classic"},{id:"map_frost",name:"FROSTFALL",tone:"frost"},{id:"map_ember",name:"EMBER CORE",tone:"ember"},{id:"map_void",name:"VOID RIFT",tone:"void"}];
-let mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null},mapVoteClock=null,lastMapVoteSync=0;
+let mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null},mapVoteClock=null,lastMapVoteSync=0,lastRoundStartAttempt=0,mapVoteResolvedAt=0;
 const makeCode=()=>{const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("")};
 const send=(event,payload)=>channel?.send({type:"broadcast",event,payload});
 
@@ -113,12 +113,12 @@ async function refreshAuth(session){
     const banResult=await supabase.from("deflect_bans").select("user_id").eq("user_id",authSession.user.id).maybeSingle();
     if(!banResult.error&&banResult.data){status("This account is banned from DEFLECT.");await leave();}
     $("mpAuthStatus").textContent=(authSession.user.is_anonymous?"GUEST":(authSession.user.email||"SIGNED IN"))+" · "+currentRole.toUpperCase();
-    $("mpLogin").style.display="none";$("mpEmail").style.display="none";$("mpLogout").style.display="block";
+    $("mpOwnerAccessToggle").style.display="none";$("mpOwnerAccess").style.display="none";$("mpLogout").style.display="block";
     if(adminPoll)clearInterval(adminPoll);
     lastAdminCheck=new Date().toISOString();adminPoll=setInterval(pollAdminActions,2500);
   }else{
     $("mpAuthStatus").textContent="Not signed in · players can join as guests";
-    $("mpLogin").style.display="block";$("mpEmail").style.display="block";$("mpLogout").style.display="none";
+    $("mpOwnerAccessToggle").style.display="block";$("mpOwnerAccess").style.display="none";$("mpLogout").style.display="none";
     if(channel)await channel.track({player:{id:selfId,name:playerName,role:"player",userId:null,joinedAt,alive:!!bridge()?.getLocalState?.()?.alive}});
     if(adminPoll)clearInterval(adminPoll);adminPoll=setInterval(pollAdminActions,3500);
   }
@@ -265,7 +265,14 @@ async function pollAdminActions(){
 }
 function roomPlayers(){
   if(!channel)return [];
-  return Object.values(channel.presenceState()).flat().map(x=>x?.player).filter(Boolean);
+  const presence=Object.values(channel.presenceState()).flat().map(x=>x?.player).filter(Boolean);
+  // Presence sync can lag behind a successful channel join. Use the already
+  // received player-state broadcasts as a short-lived roster fallback so the
+  // room list and host election don't wait on a delayed presence snapshot.
+  const now=Date.now(),present=new Set(presence.map(p=>p.id));
+  for(const [id,state] of players){if(!present.has(id)&&now-(state._lastSeen||0)>3500)players.delete(id);}
+  const fallback=[...players.entries()].filter(([id,state])=>id!==selfId&&!present.has(id)&&now-(state._lastSeen||0)<=3500).map(([id,state])=>({id,name:state.name||"Player",role:state.role||"player",userId:state.userId||null,joinedAt:state.joinedAt||0,alive:state.alive!==false}));
+  return [...new Map([...presence,...fallback].map(p=>[p.id,p])).values()];
 }
 
 function parseCommandWords(input){
@@ -332,6 +339,8 @@ function renderMapVote(){
 }
 function applyMapVoteState(payload){
   if(!payload||!Array.isArray(payload.maps))return;
+  if(payload.started&&!payload.resolved)mapVoteResolvedAt=0;
+  if(payload.resolved&&!mapVoteResolvedAt)mapVoteResolvedAt=Date.now();
   mapVoteState={...mapVoteState,...payload,maps:payload.maps,votes:payload.votes||{},selected:payload.votes?.[selfId]||mapVoteState.selected};
   if(mapVoteState.resolved&&mapVoteState.winner){localStorage.setItem("deflectMap",mapVoteState.winner);mapVoteRoot.style.display="none";window.__DEFLECT_APPLY_ARENA_THEME__?.();window.dispatchEvent(new CustomEvent("deflect-map-applied",{detail:{map:mapVoteState.winner}}));}
   renderMapVote();
@@ -344,7 +353,7 @@ function beginMapVote(){
   if(!channel||!isHost||mapVoteState.started||mapVoteState.resolved)return;
   const payload={started:true,resolved:false,endsAt:Date.now()+10000,maps:MAP_VOTE_CHOICES,votes:{},selected:null,winner:null};
   applyMapVoteState(payload);send("map-vote-start",payload);
-  clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>{renderMapVote();if(Date.now()>=mapVoteState.endsAt&&!mapVoteState.resolved){clearInterval(mapVoteClock);finishMapVote();}},100);
+  clearInterval(mapVoteClock);mapVoteClock=setInterval(()=>{renderMapVote();if(isHost&&Date.now()>=mapVoteState.endsAt&&!mapVoteState.resolved){clearInterval(mapVoteClock);finishMapVote();}},100);
 }
 function finishMapVote(){
   if(!isHost||mapVoteState.resolved)return;
@@ -379,7 +388,7 @@ function render(){
   // The room host starts the round once a second player is present. Previously
   // both clients waited for someone else to start, so neither ever launched an orb.
   const enoughPlayers=isPublicMatch?unique.length>=1:unique.length>=2;
-  if(enoughPlayers&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!state?.roundOver&&!mapVoteState.started&&!mapVoteState.resolved)beginMapVote();
+  if(enoughPlayers&&isHost&&!matchStarted&&state?.lobbyMode&&!state?.alive&&!mapVoteState.started&&!mapVoteState.resolved)beginMapVote();
   renderMapVote();
 }
 function applyRemotePlayers(){
@@ -388,7 +397,7 @@ function applyRemotePlayers(){
 }
 function startMatch(){
   const state=bridge()?.getLocalState?.();
-  if(!mapVoteState.resolved||state?.alive||matchStarted||!state?.lobbyMode||state?.roundOver)return;
+  if(!mapVoteState.resolved||state?.alive||matchStarted||!state?.lobbyMode)return;
   matchStarted=true;
   const game=bridge();
   if(typeof game?.startOnlineRound==="function"){
@@ -410,12 +419,17 @@ function startLoops(){
     const aliveNow=!!state.alive;
     if(aliveNow!==lastPresenceAlive){lastPresenceAlive=aliveNow;void channel.track({player:{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,alive:aliveNow}});}
     if(state.alive&&!lastAlive){matchStarted=true;send("match-start",{by:selfId,at:Date.now()});}
+    if(lastAlive&&!state.alive&&state.lobbyMode){
+      matchStarted=false;mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null};
+      mapVoteResolvedAt=0;lastRoundStartAttempt=0;clearInterval(mapVoteClock);mapVoteRoot.style.display="none";
+    }
     lastAlive=!!state.alive;
     if(now-lastStateSent>120){
       lastStateSent=now;
-      send("player-state",{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,state});
+      send("player-state",{id:selfId,name:playerName,role:currentRole,userId:authSession?.user?.id||null,joinedAt,state});
     }
-    if(isHost&&mapVoteState.started&&!mapVoteState.resolved&&now-lastMapVoteSync>1800){lastMapVoteSync=now;send("map-vote-sync",mapVoteState);}
+    if(isHost&&mapVoteState.started&&(!mapVoteState.resolved||Date.now()-mapVoteResolvedAt<15000)&&now-lastMapVoteSync>900){lastMapVoteSync=now;send("map-vote-sync",mapVoteState);}
+    if(isHost&&mapVoteState.resolved&&!matchStarted&&state.lobbyMode&&!state.alive&&now-lastRoundStartAttempt>1200){lastRoundStartAttempt=now;startMatch();}
     if(isHost&&now-lastOrbSent>100){
       lastOrbSent=now;
       send("orb-state",{state});
@@ -428,7 +442,7 @@ async function leave(){
   clearInterval(loops);loops=null;clearInterval(publicHeartbeat);publicHeartbeat=null;clearInterval(publicStatePoll);publicStatePoll=null;matchStarted=false;lastAlive=false;
   const publicId=publicServerId,wasPublic=isPublicMatch;publicServerId=null;isPublicMatch=false;lastPresenceAlive=null;
   if(publicId&&publicPlayerId)await supabase.rpc("deflect_leave_public_server",{p_player_id:publicPlayerId});
-  const old=channel;channel=null;roomCode=null;players.clear();clearInterval(mapVoteClock);mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null};mapVoteRoot.style.display="none";
+  const old=channel;channel=null;roomCode=null;players.clear();clearInterval(mapVoteClock);mapVoteState={started:false,resolved:false,endsAt:0,maps:[],votes:{},selected:null,winner:null};mapVoteResolvedAt=0;lastRoundStartAttempt=0;mapVoteRoot.style.display="none";
   bridge()?.setNetworkState(false,false,null,null);
   bridge()?.setRemotePlayers([]);
   if(wasPublic)bridge()?.setPublicBotCount?.(null);
@@ -445,7 +459,8 @@ async function join(raw,options={}){
     .on("presence",{event:"join"},render).on("presence",{event:"leave"},()=>{render();applyRemotePlayers()})
     .on("broadcast",{event:"player-state"},({payload})=>{
       if(!payload?.id||payload.id===selfId||!payload.state)return;
-      players.set(payload.id,{...payload.state,name:payload.name||"Player",role:payload.role||"player",userId:payload.userId||null});applyRemotePlayers();
+      players.set(payload.id,{...payload.state,name:payload.name||"Player",role:payload.role||"player",userId:payload.userId||null,joinedAt:Number(payload.joinedAt)||Date.now(),_lastSeen:Date.now()});
+      render();
       if(payload.state.alive&&!bridge()?.getLocalState?.()?.alive&&mapVoteState.resolved)startMatch();
     })
     .on("broadcast",{event:"orb-state"},({payload})=>{
@@ -513,7 +528,8 @@ $("mpStaffAssign").onclick=()=>withButton($("mpStaffAssign"),"SAVING",async()=>{
 $("mpCommandRun").onclick=()=>withButton($("mpCommandRun"),"RUNNING",runAdminCommand);
 $("mpAdminCommand").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();runAdminCommand();}};
 $("mpAuditRefresh").onclick=()=>withButton($("mpAuditRefresh"),"LOADING",async()=>{const result=await supabase.from("deflect_admin_actions").select("*").order("created_at",{ascending:false}).limit(10);const box=$("mpAdminAudit");box.replaceChildren();if(result.error){box.textContent="Audit log unavailable: "+result.error.message;status("Audit log failed: "+result.error.message);return;}for(const item of result.data||[]){const line=document.createElement("div");line.textContent=new Date(item.created_at).toLocaleString()+" · "+item.action.toUpperCase()+" · "+(item.payload?.message||item.payload?.event||item.target_user||"");box.appendChild(line);}status("Audit log refreshed · "+(result.data||[]).length+" entries.");});
-$("mpLogin").onclick=()=>withButton($("mpLogin"),"SIGNING IN",async()=>{
+$("mpOwnerAccessToggle").onclick=()=>{const panel=$("mpOwnerAccess");const opening=panel.style.display==="none";panel.style.display=opening?"block":"none";if(opening)$("mpEmail").focus();};
+ $("mpLogin").onclick=()=>withButton($("mpLogin"),"SIGNING IN",async()=>{
   const email=$("mpEmail").value.trim().toLowerCase(),password=$("mpPassword").value;
   if(email!=="herinppatel@gmail.com"){status("That email is not the DEFLECT Owner account.");return;}
   if(!password){status("Enter your Owner password.");return;}
@@ -538,7 +554,7 @@ $("mpSavePassword").onclick=()=>withButton($("mpSavePassword"),"SAVING",async()=
 });
 $("mpLogout").onclick=async()=>{await leave();await supabase.auth.signOut();await refreshAuth(null);status("Signed out.");};
 supabase.auth.onAuthStateChange((event,session)=>{
-  if(event==="PASSWORD_RECOVERY"){$("mpPasswordRecovery").style.display="block";status("Recovery link verified. Set your new Owner password below.");}
+  if(event==="PASSWORD_RECOVERY"){$("mpOwnerAccessToggle").style.display="none";$("mpOwnerAccess").style.display="block";$("mpPasswordRecovery").style.display="block";status("Recovery link verified. Set your new Owner password below.");}
   if(isOwnerEmail(session))persistOwnerSession(session);
   else if(event==="SIGNED_OUT"&&isOwnerEmail(authSession))clearPersistedOwnerSession();
   Promise.resolve().then(()=>refreshAuth(session));

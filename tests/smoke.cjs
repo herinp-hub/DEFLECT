@@ -99,7 +99,7 @@ const { chromium } = require('playwright');
       if (!(await page.locator('#powerSelect option').count())) throw new Error(`${viewport.name}: no owned powers are selectable`);
       await page.locator('#powerBtn').click();
       if (await page.locator('#dashBtn').isVisible()) await page.locator('#dashBtn').click();
-      await page.waitForFunction(() => document.querySelector('#powerStatus')?.textContent.includes('PULSE WINDOW ACTIVE'), undefined, { timeout: 3000 });
+      await page.waitForFunction(() => { const label=document.querySelector('#powerBtn')?.textContent||''; return label.includes('PULSE ·')&&!label.includes('READY'); }, undefined, { timeout: 3000 });
       await page.evaluate(() => { window.__DEFLECT_FEATURES__.forceLobbyForTest(); });
       const trainingStarted = await page.evaluate(() => window.__DEFLECT_FEATURES__.startTrainingForTest());
       const trainingDuring = await page.evaluate(() => window.__DEFLECT_FEATURES__.getTrainingStateForTest());
@@ -123,7 +123,10 @@ const { chromium } = require('playwright');
       }
       for (const item of ['shield','frost','blink','skin_cyan','skin_crimson','skin_void','trail_neon','trail_fire','effect_nova','effect_lightning','effect_stars','map_frost','map_ember','map_void']) {
         if (!(await page.locator('#featureShop [data-feature-buy="'+item+'"]').count())) throw new Error(`${viewport.name}: missing shop item ${item}`);
-      }
+      }      await page.locator('#featureShop [data-shop-tab="power"]').click();
+      if (await page.locator('#featureShopGrid [data-feature-buy]').count() !== 4) throw new Error(`${viewport.name}: powers category did not filter the shop`);
+      await page.locator('#featureShop [data-shop-tab="all"]').click();
+      if (await page.locator('#featureShopGrid [data-feature-buy]').count() !== 15) throw new Error(`${viewport.name}: all-items category did not restore the shop`);
       await page.locator('#featureShop [data-feature-buy="shield"]').click();
       await page.waitForFunction(() => localStorage.getItem('deflectOwned_shield') === '1');
       if (await page.evaluate(() => window.__DEFLECT_FEATURES__.getEquippedPower()) !== 'shield') throw new Error(`${viewport.name}: purchased shield did not equip`);
@@ -135,6 +138,14 @@ const { chromium } = require('playwright');
       if (cosmetics.skin !== 'skin_crimson' || cosmetics.trail !== 'trail_fire' || cosmetics.effect !== 'effect_lightning' || cosmetics.map !== 'map_frost' || cosmetics.tag !== 'FROSTFALL ARENA') throw new Error(`${viewport.name}: cosmetic or arena unlock failed: ${JSON.stringify(cosmetics)}`);
       await page.evaluate(() => window.__DEFLECT_FEATURES__.spawnKillEffectAtPlayer());
       await page.waitForTimeout(100);
+      await page.locator('#featureShopClose').click();
+      await page.evaluate(() => window.__DEFLECT_FEATURES__.forceLobbyForTest());
+      const restartedAfterRoundOver = await page.evaluate(() => window.__DEFLECT_MP_BRIDGE__.startOnlineRound());
+      if (!restartedAfterRoundOver) throw new Error(`${viewport.name}: round did not restart from a round-over lobby`);
+      await page.waitForFunction(() => {
+        const state=window.__DEFLECT_MP_BRIDGE__?.getLocalState?.();
+        return state?.alive===true&&!state?.lobbyMode&&!state?.roundOver;
+      }, undefined, { timeout: 10000 });
 
       if (failures.length) throw new Error(failures.join('\n'));
       console.log(`PASS ${viewport.name}: game loads, canvas renders, arena starts, no page errors`);
