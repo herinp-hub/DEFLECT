@@ -154,7 +154,7 @@ function deflectRefreshDaily(){
  if(deflectDaily.day!==deflectDayKey())deflectDaily=deflectReadDaily();
  const claim=deflectDailyPanel.querySelector('#deflectDailyClaim');
  const today=deflectDayKey(),already=deflectDaily.lastClaim===today;
- claim.disabled=already;claim.textContent=already?'DAILY BONUS CLAIMED ✓':'CLAIM DAILY BONUS · '+(50+Math.max(0,(Number(deflectDaily.streak)||0))*10)+' COINS';
+ claim.disabled=already;claim.textContent=already?'DAILY BONUS CLAIMED ✓':'CLAIM DAILY BONUS · 50 COINS + STREAK BONUS';
  deflectDailyPanel.querySelector('#deflectDailyStreak').textContent='🔥 '+(deflectDaily.streak||0)+' DAY STREAK';
  const list=deflectDailyPanel.querySelector('#deflectDailyQuestList');list.replaceChildren();
  deflectDailyQuests.forEach(q=>{
