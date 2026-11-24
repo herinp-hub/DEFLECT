@@ -60,45 +60,7 @@ player=makeFighter(0x168dff,true);scene.add(player);
   scene.updateMatrixWorld(true);
 }
 
-function buildDeflectHubLayout(){
-  const hub=new THREE.Group();hub.name='DEFLECT_HUB_LAYOUT';
-  const mat=(color,emissive=color)=>new THREE.MeshStandardMaterial({color,emissive,emissiveIntensity:.45,metalness:.35,roughness:.38});
-  const floor=mat(0x172c49,0x07182b),edge=mat(0x35cfff,0x159dff),blue=mat(0x123d69,0x075b9b),purple=mat(0x47206d,0x8b27ff),gold=mat(0x654817,0xffb52e),green=mat(0x155b42,0x19d68b),red=mat(0x651d35,0xff294f);
-  const baseY=18.05;
-  function platform(x,z,w,d,m){
-    const p=new THREE.Mesh(new THREE.BoxGeometry(w,.42,d),m);p.position.set(29.5+x,baseY, z);hub.add(p);
-    const rim=new THREE.Mesh(new THREE.BoxGeometry(w+.18,.12,d+.18),edge);rim.position.set(29.5+x,baseY-.2,z);hub.add(rim);
-    return p;
-  }
-  function sign(label,x,z,color){
-    const c=document.createElement('canvas');c.width=1024;c.height=256;const ctx=c.getContext('2d');
-    ctx.fillStyle='rgba(4,13,32,.94)';ctx.fillRect(0,0,1024,256);
-    ctx.strokeStyle=color;ctx.lineWidth=18;ctx.strokeRect(10,10,1004,236);
-    ctx.shadowColor=color;ctx.shadowBlur=28;ctx.fillStyle='#fff';ctx.font='900 100px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,512,130,940);
-    const tex=new THREE.CanvasTexture(c);const board=new THREE.Mesh(new THREE.PlaneGeometry(8,2),new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.DoubleSide}));
-    board.position.set(29.5+x,21.15,z);board.rotation.y=0;hub.add(board);
-    const post=new THREE.Mesh(new THREE.BoxGeometry(.22,2.1,.22),mat(0x253e60));post.position.set(29.5+x,19.9,z);hub.add(post);
-  }
-  // Main central plaza
-  platform(0,0,23,17,floor);sign('MAIN LOBBY',0,-5,'#35d9ff');
-  // Back: training zone
-  platform(0,-21,19,10,blue);sign('TRAINING AREA',0,-21,'#39aaff');
-  // Center stations: shop, wheel and daily rewards
-  platform(0,-8,8,6,purple);sign('SHOP',0,-8,'#d45cff');
-  platform(-9,-8,6,6,gold);sign('SPIN WHEEL',-9,-8,'#ffbd35');
-  platform(9,-8,6,6,green);sign('DAILY REWARDS',9,-8,'#30edaa');
-  // Side stations
-  platform(-15,1,7,8,purple);sign('TRADING',-15,1,'#d45cff');
-  platform(15,1,7,8,gold);sign('LEADERBOARDS',15,1,'#ffc247');
-  // Front: arena entrance and staging deck
-  platform(0,19,22,11,red);sign('ARENA',0,19,'#ff405f');
-  // Walkway strips connect every section into one continuous hub.
-  for(const [x,z,w,d] of [[0,-13,3,5],[0,11,4,7],[-11,-1,5,3],[11,-1,5,3]]){
-    const path=new THREE.Mesh(new THREE.BoxGeometry(w,.16,d),edge);path.position.set(29.5+x,baseY+.25,z);hub.add(path);
-  }
-  scene.add(hub);scene.updateMatrixWorld(true);
-}
-buildDeflectHubLayout();
+
 
 player.position.set(29.5,18.2,0);player.rotation.y=Math.PI/2;cameraYaw=Math.PI/2;
 lobbyMode=true;alive=false;roundOver=false;wasAlive=false;trainingMode=false;
