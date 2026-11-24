@@ -30,6 +30,35 @@ const startMenu=document.getElementById("menu");if(startMenu)startMenu.classList
 const endMenu=document.getElementById("end");if(endMenu)endMenu.classList.add("hidden");
 if(player)scene.remove(player);
 player=makeFighter(0x168dff,true);scene.add(player);
+
+// Rotate the actual sky-lobby geometry 90 degrees left around the lobby spawn.
+{
+  const lobbyPivot=new THREE.Vector3(29.5,0,0);
+  const toOrigin=new THREE.Matrix4().makeTranslation(-lobbyPivot.x,0,-lobbyPivot.z);
+  const turnLeft=new THREE.Matrix4().makeRotationY(Math.PI/2);
+  const fromOrigin=new THREE.Matrix4().makeTranslation(lobbyPivot.x,0,lobbyPivot.z);
+  const lobbyTurn=fromOrigin.multiply(turnLeft).multiply(toOrigin);
+  scene.updateMatrixWorld(true);
+  const lobbyMeshes=[];
+  scene.traverse(o=>{
+    if(!o.isMesh||!o.geometry||o===orb)return;
+    let p=o;while(p){if(p===player||p===orb)return;p=p.parent;}
+    const bounds=new THREE.Box3().setFromObject(o);
+    if(bounds.isEmpty())return;
+    const center=bounds.getCenter(new THREE.Vector3());
+    if(Math.hypot(center.x-lobbyPivot.x,center.z-lobbyPivot.z)>28)return;
+    lobbyMeshes.push({object:o,world:o.matrixWorld.clone()});
+  });
+  for(const item of lobbyMeshes){
+    const o=item.object;
+    const parentWorld=o.parent?o.parent.matrixWorld.clone():new THREE.Matrix4();
+    const nextWorld=lobbyTurn.clone().multiply(item.world);
+    const nextLocal=parentWorld.invert().multiply(nextWorld);
+    nextLocal.decompose(o.position,o.quaternion,o.scale);
+    o.updateMatrix();
+  }
+  scene.updateMatrixWorld(true);
+}
 player.position.set(29.5,18.2,0);player.rotation.y=Math.PI/2;cameraYaw=Math.PI/2;
 lobbyMode=true;alive=false;roundOver=false;wasAlive=false;trainingMode=false;
 bots.forEach(b=>{if(b.group)scene.remove(b.group);});bots=[];
